@@ -117,6 +117,12 @@ def info(directory: Path):
 
     folders = find_all_dea_folders(directory)
 
+    if not folders["phospho"] and not folders["protein"]:
+        console.print("[yellow]No DEA folders found.[/yellow]")
+        console.print("[dim]Phospho patterns: DEA_*_WUphospho_*, DEA_*_WUcombined_*, DEA_*_*STY*[/dim]")
+        console.print("[dim]Protein patterns: DEA_*_WUprot_*, DEA_*_WUtotal_*[/dim]")
+        return
+
     # Phospho folders
     table = Table(title="Phospho DEA Folders")
     table.add_column("#", style="dim")

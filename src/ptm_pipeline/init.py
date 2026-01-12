@@ -177,7 +177,7 @@ def init_project(
 
     if not annot_file:
         console.print("[red]Error:[/red] No annotation file found in phospho DEA folder")
-        console.print("  Expected: Inputs_*/phospho_annot_*.tsv")
+        console.print("  Expected: Inputs_*/*_annot_*.tsv or Inputs_*/*_dataset*.tsv")
         return False
 
     console.print(f"  Found: {annot_file.relative_to(project_dir)}")
