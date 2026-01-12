@@ -22,10 +22,10 @@ cd ~/Dropbox/DataAnalysis/o40XXX_NewProject
 # DEA folders should already exist from prolfquapp
 
 ptm-pipeline init
-# Auto-detects DEA folders, generates config.yaml, copies pipeline files
+# Auto-detects DEA folders, generates ptm_config.yaml, copies pipeline files
 
 # Then run the pipeline
-snakemake -s SnakefileV2.smk -j1 all
+snakemake -s SnakefileV2.smk --configfile ptm_config.yaml -j1 all
 ```
 
 ### Commands
@@ -69,7 +69,7 @@ After `ptm-pipeline init`:
 o40XXX_NewProject/
 ├── DEA_YYYYMMDD_WUphospho_*/
 ├── DEA_YYYYMMDD_WUprot_*/
-├── config.yaml                   # Generated config
+├── ptm_config.yaml               # Generated config
 ├── SnakefileV2.smk              # Pipeline orchestration
 ├── helpers.py                    # Snakemake helpers
 └── src/                          # R scripts and Rmd files

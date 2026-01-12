@@ -94,8 +94,8 @@ def validate_project(project_dir: Path, quick: bool = False) -> bool:
     console.print(f"\n[bold]Validating PTM pipeline setup in:[/bold] {project_dir}\n")
 
     # Check config file
-    config_file = project_dir / "config.yaml"
-    results.append(check_file_exists(config_file, "config.yaml"))
+    config_file = project_dir / "ptm_config.yaml"
+    results.append(check_file_exists(config_file, "ptm_config.yaml"))
 
     config = None
     if config_file.exists():
@@ -156,7 +156,7 @@ def validate_project(project_dir: Path, quick: bool = False) -> bool:
     for r in results:
         status = "[green]PASS[/green]" if r.passed else "[red]FAIL[/red]"
         table.add_row(r.name, status, r.message)
-        if not r.passed and r.name in ["config.yaml", "SnakefileV2.smk", "Phospho DEA folder", "Protein DEA folder"]:
+        if not r.passed and r.name in ["ptm_config.yaml", "SnakefileV2.smk", "Phospho DEA folder", "Protein DEA folder"]:
             critical_failed = True
 
     console.print(table)

@@ -74,9 +74,9 @@ def update(directory: Path, dry_run: bool):
     directory = directory.resolve()
 
     # Check config exists (don't update uninitialized projects)
-    config_file = directory / "config.yaml"
+    config_file = directory / "ptm_config.yaml"
     if not config_file.exists():
-        console.print("[red]Error:[/red] No config.yaml found. Run 'ptm-pipeline init' first.")
+        console.print("[red]Error:[/red] No ptm_config.yaml found. Run 'ptm-pipeline init' first.")
         raise SystemExit(1)
 
     console.print(f"\n[bold]Updating PTM pipeline in:[/bold] {directory}\n")
@@ -98,7 +98,7 @@ def update(directory: Path, dry_run: bool):
         console.print(f"\n[yellow]Dry run complete.[/yellow] No files were modified.")
     else:
         console.print(f"\n[green]Updated {len(copied)} files.[/green]")
-        console.print("  config.yaml was preserved.")
+        console.print("  ptm_config.yaml was preserved.")
 
 
 @main.command()

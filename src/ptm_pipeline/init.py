@@ -113,7 +113,7 @@ def init_project(
     console.print(f"\n[bold]Initializing PTM pipeline in:[/bold] {project_dir}\n")
 
     # Check if already initialized
-    config_file = project_dir / "config.yaml"
+    config_file = project_dir / "ptm_config.yaml"
     snakefile = project_dir / "SnakefileV2.smk"
 
     if (config_file.exists() or snakefile.exists()) and not force:
@@ -211,11 +211,11 @@ def init_project(
     )
 
     if dry_run:
-        console.print("\n[yellow]Dry run - config.yaml would contain:[/yellow]")
-        console.print(Panel(config_to_yaml_string(config), title="config.yaml"))
+        console.print("\n[yellow]Dry run - ptm_config.yaml would contain:[/yellow]")
+        console.print(Panel(config_to_yaml_string(config), title="ptm_config.yaml"))
     else:
         write_config(config, config_file)
-        console.print(f"  Written: config.yaml")
+        console.print(f"  Written: ptm_config.yaml")
 
     # Copy template files
     console.print("\n[bold]Copying pipeline files...[/bold]")
@@ -237,8 +237,8 @@ def init_project(
     else:
         console.print("[green]Pipeline initialized successfully![/green]")
         console.print("\nNext steps:")
-        console.print(f"  1. Review config.yaml")
-        console.print(f"  2. Run: snakemake -s SnakefileV2.smk -n all  # dry-run")
-        console.print(f"  3. Run: snakemake -s SnakefileV2.smk -j1 all")
+        console.print(f"  1. Review ptm_config.yaml")
+        console.print(f"  2. Run: snakemake -s SnakefileV2.smk --configfile ptm_config.yaml -n all  # dry-run")
+        console.print(f"  3. Run: snakemake -s SnakefileV2.smk --configfile ptm_config.yaml -j1 all")
 
     return True
