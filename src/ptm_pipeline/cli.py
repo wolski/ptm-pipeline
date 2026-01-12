@@ -131,7 +131,8 @@ def info(directory: Path):
     if folders["phospho"]:
         console.print(table)
     else:
-        console.print("[yellow]No phospho DEA folders found (DEA_*_WUphospho_*)[/yellow]")
+        console.print("[yellow]No phospho DEA folders found[/yellow]")
+        console.print("[dim]  Patterns: DEA_*_WUphospho_*, DEA_*_WUcombined_*, DEA_*_*STY*[/dim]")
 
     console.print()
 

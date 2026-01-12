@@ -15,15 +15,22 @@ def find_dea_folders(project_dir: Path) -> DEAFolders:
     """Find phospho and protein DEA folders in project directory.
 
     Looks for patterns:
-    - DEA_*_WUphospho_* → phospho DEA
-    - DEA_*_WUprot_* or DEA_*_WUtotal_* → protein DEA
+    - Phospho: DEA_*_WUphospho_*, DEA_*_WUcombined_*, DEA_*_*STY*, DEA_*_*phospho*
+    - Protein: DEA_*_WUprot_*, DEA_*_WUtotal_*
 
     Returns the most recent (by name, assuming date prefix) if multiple found.
     """
-    phospho_dirs = sorted(project_dir.glob("DEA_*_WUphospho_*"), reverse=True)
+    # Phospho patterns - multiple naming conventions
+    phospho_dirs = set()
+    for pattern in ["DEA_*_WUphospho_*", "DEA_*_WUcombined_*", "DEA_*_*STY*"]:
+        phospho_dirs.update(project_dir.glob(pattern))
+    phospho_dirs = sorted(phospho_dirs, key=lambda x: x.name, reverse=True)
+
+    # Protein patterns
     protein_dirs = sorted(
         list(project_dir.glob("DEA_*_WUprot_*")) +
         list(project_dir.glob("DEA_*_WUtotal_*")),
+        key=lambda x: x.name,
         reverse=True
     )
 
@@ -42,15 +49,19 @@ def find_all_dea_folders(project_dir: Path) -> dict[str, list[Path]]:
 
     Returns dict with 'phospho' and 'protein' keys, each containing list of paths.
     """
-    phospho_dirs = sorted(
-        [d for d in project_dir.glob("DEA_*_WUphospho_*") if d.is_dir()],
-        reverse=True
-    )
+    # Phospho patterns - multiple naming conventions
+    phospho_dirs = set()
+    for pattern in ["DEA_*_WUphospho_*", "DEA_*_WUcombined_*", "DEA_*_*STY*"]:
+        phospho_dirs.update(d for d in project_dir.glob(pattern) if d.is_dir())
+    phospho_dirs = sorted(phospho_dirs, key=lambda x: x.name, reverse=True)
+
+    # Protein patterns
     protein_dirs = sorted(
         [d for d in
          list(project_dir.glob("DEA_*_WUprot_*")) +
          list(project_dir.glob("DEA_*_WUtotal_*"))
          if d.is_dir()],
+        key=lambda x: x.name,
         reverse=True
     )
 

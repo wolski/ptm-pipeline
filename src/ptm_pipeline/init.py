@@ -129,7 +129,8 @@ def init_project(
     all_folders = find_all_dea_folders(project_dir)
 
     if not all_folders["phospho"]:
-        console.print("[red]Error:[/red] No phospho DEA folder found (DEA_*_WUphospho_*)")
+        console.print("[red]Error:[/red] No phospho DEA folder found")
+        console.print("  Expected patterns: DEA_*_WUphospho_*, DEA_*_WUcombined_*, DEA_*_*STY*")
         return False
 
     if not all_folders["protein"]:
