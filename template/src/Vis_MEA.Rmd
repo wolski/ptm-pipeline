@@ -1,0 +1,282 @@
+---
+title: "Motif Enrichment Analysis (MEA) Visualization"
+subtitle: "`r params$analysis_type`"
+author: "FGCZ"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+params:
+  kinaselib_dir: "PTM_DPA/KinaseLib"
+  analysis_type: "DPA"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    self_contained: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 8
+)
+
+library(dplyr)
+library(DT)
+library(tidyr)
+library(ggplot2)
+library(purrr)
+library(forcats)
+library(writexl)
+```
+
+# Overview
+
+**Motif Enrichment Analysis (MEA)** results for **`r params$analysis_type`** analysis using the kinase-library package.
+
+MEA identifies kinases whose known substrate motifs are enriched at the extremes of ranked phosphoproteomics data, indicating altered kinase activity.
+
+# Load MEA Results
+
+```{r loadMEA}
+mea_files <- list.files(params$kinaselib_dir, pattern = "^mea_.*\\.csv$", full.names = TRUE)
+
+if (length(mea_files) == 0) {
+  stop("No MEA result files found in: ", params$kinaselib_dir)
+}
+
+# Load all MEA results
+mea_results <- mea_files |>
+  set_names(gsub("^mea_|\\.csv$", "", basename(mea_files))) |>
+  map_dfr(~ read.csv(.x, stringsAsFactors = FALSE), .id = "contrast")
+
+# Standardize column names (MEA output uses Kinase, we need kinase)
+if ("Kinase" %in% names(mea_results)) {
+  mea_results <- mea_results |> rename(kinase = Kinase)
+}
+if ("p.value" %in% names(mea_results)) {
+  mea_results <- mea_results |> rename(pvalue = `p.value`)
+} else if ("p-value" %in% names(mea_results)) {
+  mea_results <- mea_results |> rename(pvalue = `p-value`)
+}
+# Rename size column if present
+if ("Subs.fraction" %in% names(mea_results)) {
+  mea_results <- mea_results |> mutate(size = as.numeric(sub("/.*", "", `Subs.fraction`)))
+} else if ("Subs fraction" %in% names(mea_results)) {
+  mea_results <- mea_results |> mutate(size = as.numeric(sub("/.*", "", `Subs fraction`)))
+}
+
+cat("Loaded", nrow(mea_results), "results from", length(mea_files), "contrasts\n")
+cat("Contrasts:", paste(unique(mea_results$contrast), collapse = ", "), "\n")
+```
+
+```{r cleanResults}
+# Clean and prepare results
+mea_clean <- mea_results |>
+  mutate(
+    neg_log_fdr = -log10(pmax(FDR, 1e-10)),
+    direction = case_when(
+      NES > 0 ~ "Up",
+      NES < 0 ~ "Down",
+      TRUE ~ "NS"
+    ),
+    significant = FDR < 0.1
+  )
+
+# Summary
+summary_df <- mea_clean |>
+  group_by(contrast) |>
+  summarize(
+    total_kinases = n(),
+    sig_up = sum(FDR < 0.1 & NES > 0, na.rm = TRUE),
+    sig_down = sum(FDR < 0.1 & NES < 0, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+knitr::kable(summary_df, caption = paste("MEA Summary -", params$analysis_type))
+```
+
+# Results by Contrast {.tabset .tabset-pills}
+
+```{r contrastPlots, results='asis', fig.height=8}
+for (ctr in unique(mea_clean$contrast)) {
+  cat("\n\n## ", ctr, "\n\n")
+
+  ctr_data <- mea_clean |> filter(contrast == ctr)
+  n_sig <- sum(ctr_data$FDR < 0.1, na.rm = TRUE)
+  cat("**Significant kinases (FDR < 0.1):** ", n_sig, "\n\n")
+
+  # Top kinases dotplot
+  plot_data <- ctr_data |>
+    arrange(FDR) |>
+    head(30) |>
+    mutate(kinase = fct_reorder(kinase, NES))
+
+  p <- ggplot(plot_data, aes(x = NES, y = kinase)) +
+    geom_point(aes(size = neg_log_fdr, color = NES, alpha = significant)) +
+    scale_color_gradient2(low = "blue", mid = "grey80", high = "red", midpoint = 0) +
+    scale_size_continuous(name = "-log10(FDR)", range = c(2, 8)) +
+    scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4), guide = "none") +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+    theme_bw() +
+    theme(axis.text.y = element_text(size = 9)) +
+    labs(
+      title = paste0(params$analysis_type, " - ", ctr),
+      subtitle = "Top 30 kinases by FDR",
+      x = "Normalized Enrichment Score (NES)",
+      y = ""
+    )
+  print(p)
+  cat("\n\n")
+
+  # Significant kinases table
+  cat("### Significant Kinases\n\n")
+  sig_table <- ctr_data |>
+    filter(FDR < 0.1) |>
+    select(kinase, NES, pvalue, FDR, n_substrates = size) |>
+    arrange(FDR) |>
+    mutate(across(where(is.numeric), ~round(.x, 4)))
+  print(htmltools::tagList(
+    DT::datatable(sig_table,
+                  extensions = 'Buttons',
+                  options = list(pageLength = 15, scrollX = TRUE,
+                                 dom = 'Bfrtip', buttons = c('copy', 'csv', 'excel')))
+  ))
+  cat("\n\n")
+}
+```
+
+# Summary Heatmap
+
+```{r heatmap, fig.height=10, fig.width=12}
+# Get top kinases across all contrasts
+top_kinases <- mea_clean |>
+  filter(FDR < 0.15) |>
+  group_by(kinase) |>
+  summarize(min_fdr = min(FDR), .groups = "drop") |>
+  arrange(min_fdr) |>
+  head(30) |>
+  pull(kinase)
+
+heatmap_data <- mea_clean |>
+  filter(kinase %in% top_kinases) |>
+  mutate(
+    sig_label = case_when(
+      FDR < 0.01 ~ "***",
+      FDR < 0.05 ~ "**",
+      FDR < 0.1 ~ "*",
+      TRUE ~ ""
+    )
+  )
+
+ggplot(heatmap_data, aes(x = contrast, y = fct_reorder(kinase, NES), fill = NES)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sig_label), color = "black", size = 4) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
+    axis.text.y = element_text(size = 9)
+  ) +
+  labs(
+    title = paste0("MEA Summary Heatmap - ", params$analysis_type),
+    subtitle = "Top kinases (* p<0.1, ** p<0.05, *** p<0.01)",
+    x = "", y = "", fill = "NES"
+  )
+```
+
+# Volcano Plot
+
+```{r volcano, fig.height=8, fig.width=12}
+# Volcano plot faceted by contrast with labels for top kinases
+ggplot(mea_clean, aes(x = NES, y = neg_log_fdr)) +
+  geom_point(aes(color = direction, alpha = significant), size = 2) +
+  geom_hline(yintercept = -log10(0.1), linetype = "dashed", color = "grey30") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey30") +
+  geom_text(
+    data = mea_clean |>
+      filter(FDR < 0.05) |>
+      group_by(contrast) |>
+      slice_min(FDR, n = 5),
+    aes(label = kinase),
+    size = 2.5,
+    hjust = -0.1,
+    check_overlap = TRUE
+  ) +
+  scale_color_manual(values = c("Up" = "red", "Down" = "blue", "NS" = "grey50")) +
+  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.3), guide = "none") +
+  facet_wrap(~contrast, scales = "free") +
+  theme_bw() +
+  labs(
+    title = paste0("MEA Volcano Plots - ", params$analysis_type),
+    subtitle = "Dashed line: FDR = 0.1; Labels: top 5 by FDR per contrast",
+    x = "NES",
+    y = "-log10(FDR)",
+    color = "Direction"
+  )
+```
+
+# Diagnostics
+
+```{r diagnosticPvalues}
+pval_diag <- mea_clean |>
+  group_by(contrast) |>
+  summarise(
+    `Min p-value` = signif(min(pvalue, na.rm = TRUE), 3),
+    `p < 0.05` = sum(pvalue < 0.05, na.rm = TRUE),
+    `p < 0.01` = sum(pvalue < 0.01, na.rm = TRUE),
+    Total = n(),
+    .groups = "drop"
+  ) |>
+  rename(Contrast = contrast)
+knitr::kable(pval_diag, caption = paste("Raw p-value Distribution -", params$analysis_type))
+```
+
+# All Results
+
+```{r allResults}
+# All kinases across all contrasts
+all_results_dt <- mea_clean |>
+  select(contrast, kinase, NES, pvalue, FDR, size) |>
+  arrange(contrast, FDR) |>
+  mutate(across(where(is.numeric), ~round(.x, 4)))
+
+DT::datatable(all_results_dt,
+  filter = "top",
+  extensions = 'Buttons',
+  options = list(pageLength = 15, scrollX = TRUE,
+                 dom = 'Bfrtip', buttons = c('copy', 'csv', 'excel')),
+  caption = "All kinases across all contrasts")
+```
+
+# Export Results
+
+```{r export}
+# Export to Excel
+export_list <- list(
+  all_results = mea_clean |>
+    select(contrast, kinase, NES, pvalue, FDR, size) |>
+    arrange(contrast, FDR),
+  significant = mea_clean |>
+    filter(FDR < 0.1) |>
+    select(contrast, kinase, NES, pvalue, FDR, size) |>
+    arrange(contrast, FDR),
+  summary = summary_df
+)
+
+xlsx_file <- file.path(params$kinaselib_dir, paste0("MEA_", params$analysis_type, "_results.xlsx"))
+writexl::write_xlsx(export_list, xlsx_file)
+
+rds_file <- file.path(params$kinaselib_dir, paste0("MEA_", params$analysis_type, "_results.rds"))
+saveRDS(mea_clean, rds_file)
+
+cat("Exported:\n -", xlsx_file, "\n -", rds_file, "\n")
+```
+
+# Session Info
+
+```{r sessionInfo}
+sessionInfo()
+```

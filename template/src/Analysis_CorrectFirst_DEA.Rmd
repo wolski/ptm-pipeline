@@ -1,0 +1,315 @@
+---
+title: "Correct First Approach - Differential Expression Analysis"
+author: "FGCZ"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+running_head: "CorrectFirst DEA"
+params:
+  wd: ""
+  fdr: 0.05
+  fc: 0.6
+  output_base: !r paste0("PTM_", format(Sys.Date(), "%Y%m%d"))
+  utils_script: "src/dea_utils.R"
+  phospho_dea_dir: "DEA_setup/DEA_20260109_WUphospho_SHP2_vsn"
+  protein_dea_dir: "DEA_setup/DEA_20260109_WUprot_SHP2_vsn"
+  annot_file: "DEA_setup/phospho_annot_SHP2_RUX.tsv"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+  bookdown::html_document2:
+    toc: true
+  pdf_document:
+    toc: true
+editor_options:
+  chunk_output_type: console
+---
+
+```{r init, include=FALSE}
+# Default parameters - used when running interactively
+# Overwritten by params passed to rmarkdown::render()
+default_params <- list(
+  fdr = 0.05,
+  fc = 0.6,
+  output_base = paste0("PTM_", format(Sys.Date(), "%Y%m%d")),
+  utils_script = "src/dea_utils.R",
+  phospho_dea_dir = "DEA_setup/DEA_20260109_WUphospho_SHP2_vsn",
+  protein_dea_dir = "DEA_setup/DEA_20260109_WUprot_SHP2_vsn",
+  annot_file = "DEA_setup/phospho_annot_SHP2_RUX.tsv"
+)
+
+# Use params if available, otherwise use defaults
+if (!exists("params") || is.null(params)) {
+ params <- default_params
+} else {
+  # Fill in any missing params with defaults
+  for (p in names(default_params)) {
+    if (is.null(params[[p]]) || (is.character(params[[p]]) && params[[p]] == "")) {
+      params[[p]] <- default_params[[p]]
+    }
+  }
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 6,
+  dpi = 300
+)
+
+# Load required libraries
+suppressPackageStartupMessages({
+  library(prolfqua)
+  library(prolfquapp)
+  library(prophosqua)
+  library(tidyverse)
+  library(arrow)
+  library(yaml)
+  library(writexl)
+})
+```
+
+# Introduction
+
+This document implements the "Correct First" approach for estimating PTM feature usage. Instead of the standard approach where protein-level corrections are applied after modeling PTM abundances, this approach performs protein normalization **before** modeling.
+
+**Workflow:**
+1. Load normalized total proteome abundances
+2. Load normalized PTM site abundances
+3. Correct PTM abundances by subtracting protein abundances
+4. Model the corrected PTM usage values
+5. Compute contrasts and evaluate significance
+6. Export results
+
+# Data Loading
+
+## Project Setup
+
+```{r defineParameters}
+source(params$utils_script)
+
+wu_id <- "PTM_usage"
+
+# Use output_base param for date-stamped output directories
+res_dir <- file.path(params$output_base, "PTM_CF_DPU")
+if (!dir.exists(res_dir)) {
+  dir.create(res_dir, recursive = TRUE)
+}
+
+# Load annotation from direct path
+cat("Loading annotation from:", params$annot_file, "\n")
+annot <- readr::read_tsv(params$annot_file, show_col_types = FALSE)
+knitr::kable(head(annot), caption = "Sample annotation")
+```
+
+## Load Normalized Total Proteome Abundances
+
+```{r loadNormalizedAbundances}
+# Load from direct DEA directory path
+ldata <- arrow::read_parquet(get_dea_parquet(params$protein_dea_dir))
+ldata <- ldata |> filter(!grepl("^rev_", protein_Id))
+
+tot_d <- ldata |>
+  dplyr::select(Name, protein_Id, normalized_abundance)
+
+cat("Loaded", nrow(tot_d), "normalized protein abundance measurements\n")
+```
+
+## Load Normalized Single-Site Abundances
+
+```{r loadNormalizedSiteAbundances}
+# Load from direct DEA directory path
+ldata <- arrow::read_parquet(get_dea_parquet(params$phospho_dea_dir))
+list <- yaml::read_yaml(get_dea_yaml(params$phospho_dea_dir))
+config <- prolfqua::list_to_AnalysisConfiguration(list)
+ptm_data <- prolfqua::LFQData$new(ldata, config)
+cat("Loaded", nrow(ptm_data$data), "normalized PTM site abundance measurements\n")
+```
+
+# Protein Normalization
+
+## Merge and Correct PTM Data
+
+Correct PTM abundances by subtracting protein abundances (on log scale this is equivalent to dividing).
+
+```{r correctData}
+ptm_data$data <- dplyr::inner_join(
+  ptm_data$data, tot_d,
+  by = c("Name", "protein_Id"),
+  suffix = c(".site", ".total")
+)
+
+ptm_data$data <- ptm_data$data |>
+  dplyr::mutate(ptm_usage = normalized_abundance.site - normalized_abundance.total)
+
+cat("Merged data contains", nrow(ptm_data$data), "measurements\n")
+```
+
+```{r correctDataWrite}
+ptm_data$config$table$set_response("ptm_usage")
+writer <- prolfqua::LFQDataWriter$new(ptm_data, prefix = "CorrectFirst_", format = "xlsx")
+writer$write_wide(res_dir)
+```
+
+## Visualize Corrected PTM Usage
+
+```{r fig1densityCorrected, fig.cap="Density plot of the total proteome corrected PTM site abundances."}
+ptm_data$config$table$set_response("ptm_usage")
+pl <- ptm_data$get_Plotter()
+ptm_data$config$table$get_response()
+ptm_data$data["ptm_usage"] <- ptm_data$data["ptm_usage"] + 20
+pl$intensity_distribution_density()
+
+```
+
+```{r pca, fig.cap="Corrected PTM site abundances PCA plot.", fig.width=6, fig.height=6}
+pl$pca_plotly()
+```
+
+# Statistical Modeling
+
+## Fit Linear Model
+
+```{r fitModelToCorrected}
+strategy_lm <- prolfqua::strategy_lm("ptm_usage ~ G_")
+models <- prolfqua::build_model(data = ptm_data, model_strategy = strategy_lm)
+cat("Built models for", length(models$modeldf), "PTM sites\n")
+
+```
+
+## Define Contrasts
+
+```{r defineContrasts}
+contrasts <- annot$Contrast
+names(contrasts) <- annot$ContrastName
+contrasts <- contrasts[!is.na(contrasts)]
+
+knitr::kable(
+  data.frame(Contrast_Name = names(contrasts), Contrast = contrasts),
+  caption = "Contrasts to be evaluated"
+)
+```
+
+## Compute Contrasts
+
+```{r computeTheContrasts}
+ctr <- prolfqua::Contrasts$new(models, contrasts)
+ctr_m <- prolfqua::ContrastsMissing$new(ptm_data, contrasts)
+ctr_all <- prolfqua::merge_contrasts_results(ctr, ctr_m)$merged
+ctr_df <- ctr$get_contrasts()
+
+ctr <- prolfqua::ContrastsModerated$new(ctr)
+ctr_df <- ctr$get_contrasts()
+
+
+cat("Computed contrasts for", nrow(ctr_df), "PTM site-contrast combinations\n")
+```
+
+# Results
+
+## Volcano Plot (Model Only)
+
+```{r figVolcanoModelOnly, fig.cap="Volcano plot (Model results only)"}
+ctr_plotter_model <- ctr$get_Plotter()
+ctr_plotter_model$volcano()$FDR
+```
+
+## Volcano Plot (Combined)
+
+```{r fig2volcanoCorrectFirst, fig.cap="Volcano plot showing -log10(FDR) vs PTM fold change.", inclue = FALSE, eval = FALSE}
+ctr_plotter <- ctr_all$get_Plotter()
+ctr_plotter$volcano()$FDR
+```
+
+# Export Results
+
+## Add Site Information from DEA Results
+
+```{r addSiteInfo}
+# Load site info (flanking sequences, position, modAA) from original DEA results
+ptm_xlsx <- get_dea_xlsx(params$phospho_dea_dir)
+full_results <- readxl::read_xlsx(ptm_xlsx, sheet = "normalized_abundances")
+
+# Get sequence window column (handles both old and new prolfquapp formats)
+seq_col <- grep("FlankingRegion|SequenceWindow", colnames(full_results), value = TRUE, ignore.case = TRUE)[1]
+
+# Determine column names based on format (old vs new prolfquapp output)
+# New format: protein_Id_site, PTM_SiteLocation, PTM_SiteAA, PTM_FlankingRegion
+# Old format: site, posInProtein, modAA, SequenceWindow/FlankingRegion
+has_new_format <- "protein_Id_site" %in% colnames(full_results)
+
+if (has_new_format) {
+  site_info <- full_results |>
+    dplyr::select(
+      protein_Id_site,
+      posInProtein = PTM_SiteLocation,
+      modAA = PTM_SiteAA,
+      SequenceWindow = !!sym(seq_col)
+    ) |>
+    dplyr::distinct()
+  # Merge using protein_Id_site
+  ctr_df_seq_window <- dplyr::left_join(ctr_df, site_info, by = "protein_Id_site")
+} else {
+  site_info <- full_results |>
+    dplyr::select(site, posInProtein, modAA, SequenceWindow = !!sym(seq_col)) |>
+    dplyr::distinct()
+  # Merge using site
+  ctr_df_seq_window <- dplyr::left_join(ctr_df, site_info, by = "site")
+}
+
+```
+
+## Export to Excel
+
+We are exporting only those contrasts computed without imputation.
+
+```{r exportResults}
+# Rename columns to match format expected by n_to_c_usage
+ctr_df_seq_window$modelName |> table()
+ctr_df <- ctr_df_seq_window |>
+  dplyr::rename(diff_diff = diff, FDR_I = FDR) |>
+  dplyr::mutate(modelName = ifelse(modelName == "WaldTest_moderated", "Linear_Model_Moderated", "MissingInOneCondition"))
+# Remove contrasts computed with imputation
+ctr_df$modelName |> table()
+
+ctr_df <- ctr_df |> dplyr::filter(modelName != "MissingInOneCondition")
+ctr_df |> dplyr::filter(modelName != "MissingInOneCondition")
+
+stopifnot(nrow(ctr_df) == nrow(ctr$get_contrasts()))
+
+
+output_file <- file.path(res_dir, paste0("CorrectFirst_", wu_id, "_results.xlsx"))
+writexl::write_xlsx(
+  list(results = ctr_df),
+  path = output_file
+)
+cat("Results exported to:", output_file, "\n")
+```
+
+## Output Location
+
+Results saved in:
+
+```{r showresdir, echo=TRUE}
+res_dir
+```
+
+# Summary
+
+This "Correct First" approach:
+
+1. **Normalizes PTM abundances by protein abundances** before statistical modeling
+2. **Models the corrected PTM usage** values directly
+3. **Computes contrasts** on the protein-normalized PTM values
+
+This differs from the "correct last" approach (DPU/MSstatsPTM method) where PTM and protein abundances are modeled separately, then protein-level corrections are applied at the contrast level.
+
+# Session Info
+
+```{r sessionInfo}
+sessionInfo()
+```

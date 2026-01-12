@@ -1,0 +1,161 @@
+---
+title: "PTM Analysis Results"
+params:
+  folder: "PTM_20251206"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    self_contained: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(dplyr)
+```
+
+This page provides an overview of all PTM (Post-Translational Modification) analysis results in the `r params$folder` directory.
+
+```{r discover_files}
+# Check which analysis types have results
+dpa_exists <- dir.exists(file.path(params$folder, "PTM_DPA"))
+dpu_exists <- dir.exists(file.path(params$folder, "PTM_DPU"))
+cf_exists <- dir.exists(file.path(params$folder, "PTM_CF_DPU"))
+
+# Check for PTM-SEA results
+ptmsea_dpa <- file.exists(file.path(params$folder, "PTM_DPA/PTMSEA/PTMSEA_DPA.html"))
+ptmsea_dpu <- file.exists(file.path(params$folder, "PTM_DPU/PTMSEA/PTMSEA_DPU.html"))
+ptmsea_cf <- file.exists(file.path(params$folder, "PTM_CF_DPU/PTMSEA/PTMSEA_CF.html"))
+
+# Check for KinaseLib results
+kinaselib_dpa <- if (dir.exists(file.path(params$folder, "PTM_DPA/KinaseLib"))) {
+  list.files(file.path(params$folder, "PTM_DPA/KinaseLib"), pattern = "\\.html$", full.names = FALSE)
+} else character(0)
+kinaselib_dpu <- if (dir.exists(file.path(params$folder, "PTM_DPU/KinaseLib"))) {
+  list.files(file.path(params$folder, "PTM_DPU/KinaseLib"), pattern = "\\.html$", full.names = FALSE)
+} else character(0)
+kinaselib_cf <- if (dir.exists(file.path(params$folder, "PTM_CF_DPU/KinaseLib"))) {
+  list.files(file.path(params$folder, "PTM_CF_DPU/KinaseLib"), pattern = "\\.html$", full.names = FALSE)
+} else character(0)
+
+# Check for data files
+dpa_xlsx <- if (dpa_exists) list.files(file.path(params$folder, "PTM_DPA"), pattern = "\\.xlsx$", full.names = FALSE) else character(0)
+dpu_xlsx <- if (dpu_exists) list.files(file.path(params$folder, "PTM_DPU"), pattern = "\\.xlsx$", full.names = FALSE) else character(0)
+cf_xlsx <- if (cf_exists) list.files(file.path(params$folder, "PTM_CF_DPU"), pattern = "\\.xlsx$", full.names = FALSE) else character(0)
+
+# Check for n_to_c reports
+ntoc_dpa <- file.exists(file.path(params$folder, "PTM_DPA/Analysis_DPA_n_to_c.html"))
+ntoc_dpu <- file.exists(file.path(params$folder, "PTM_DPU/Analysis_DPU_n_to_c.html"))
+ntoc_cf <- file.exists(file.path(params$folder, "PTM_CF_DPU/Analysis_CorrectFirst_n_to_c.html"))
+
+# Check for seqlogo reports
+seqlogo_dpa <- file.exists(file.path(params$folder, "PTM_DPA/Analysis_DPA_seqlogo.html"))
+seqlogo_dpu <- file.exists(file.path(params$folder, "PTM_DPU/Analysis_DPU_seqlogo.html"))
+seqlogo_cf <- file.exists(file.path(params$folder, "PTM_CF_DPU/Analysis_CorrectFirst_seqlogo.html"))
+```
+
+## DPA (Differential PTM Abundance)
+
+Raw phosphosite signal changes - includes protein abundance effects.
+
+```{r dpa_section, results='asis'}
+cat("| Analysis | Report |\n")
+cat("|----------|--------|\n")
+cat("| Main Results | [View](PTM_DPA/index.html) |\n")
+
+if (ntoc_dpa) {
+  cat("| N-to-C Plots | [View](PTM_DPA/Analysis_DPA_n_to_c.html) |\n")
+}
+if (seqlogo_dpa) {
+  cat("| Sequence Logos | [View](PTM_DPA/Analysis_DPA_seqlogo.html) |\n")
+}
+if (ptmsea_dpa) {
+  cat("| PTM-SEA | [View](PTM_DPA/PTMSEA/PTMSEA_DPA.html) |\n")
+}
+for (f in kinaselib_dpa) {
+  desc <- case_when(
+    grepl("MEA", f, ignore.case = TRUE) ~ "KinaseLib MEA",
+    grepl("GSEA", f, ignore.case = TRUE) ~ "KinaseLib GSEA",
+    TRUE ~ "KinaseLib"
+  )
+  cat(sprintf("| %s | [View](PTM_DPA/KinaseLib/%s) |\n", desc, f))
+}
+if (length(dpa_xlsx) > 0) {
+  for (f in dpa_xlsx) {
+    cat(sprintf("| Data | [%s](PTM_DPA/%s) |\n", f, f))
+  }
+}
+```
+
+## DPU (Differential PTM Usage)
+
+Protein-normalized stoichiometry changes - true phosphorylation changes independent of protein abundance.
+
+```{r dpu_section, results='asis'}
+cat("| Analysis | Report |\n")
+cat("|----------|--------|\n")
+cat("| Main Results | [View](PTM_DPU/index.html) |\n")
+
+if (ntoc_dpu) {
+  cat("| N-to-C Plots | [View](PTM_DPU/Analysis_DPU_n_to_c.html) |\n")
+}
+if (seqlogo_dpu) {
+  cat("| Sequence Logos | [View](PTM_DPU/Analysis_DPU_seqlogo.html) |\n")
+}
+if (ptmsea_dpu) {
+  cat("| PTM-SEA | [View](PTM_DPU/PTMSEA/PTMSEA_DPU.html) |\n")
+}
+for (f in kinaselib_dpu) {
+  desc <- case_when(
+    grepl("MEA", f, ignore.case = TRUE) ~ "KinaseLib MEA",
+    grepl("GSEA", f, ignore.case = TRUE) ~ "KinaseLib GSEA",
+    TRUE ~ "KinaseLib"
+  )
+  cat(sprintf("| %s | [View](PTM_DPU/KinaseLib/%s) |\n", desc, f))
+}
+if (length(dpu_xlsx) > 0) {
+  for (f in dpu_xlsx) {
+    cat(sprintf("| Data | [%s](PTM_DPU/%s) |\n", f, f))
+  }
+}
+```
+
+## CorrectFirst (CF)
+
+Alternative protein-correction approach - subtracts protein abundance before statistical modeling.
+
+```{r cf_section, results='asis'}
+cat("| Analysis | Report |\n")
+cat("|----------|--------|\n")
+cat("| Main Results | [View](PTM_CF_DPU/index.html) |\n")
+
+if (ntoc_cf) {
+  cat("| N-to-C Plots | [View](PTM_CF_DPU/Analysis_CorrectFirst_n_to_c.html) |\n")
+}
+if (seqlogo_cf) {
+  cat("| Sequence Logos | [View](PTM_CF_DPU/Analysis_CorrectFirst_seqlogo.html) |\n")
+}
+if (ptmsea_cf) {
+  cat("| PTM-SEA | [View](PTM_CF_DPU/PTMSEA/PTMSEA_CF.html) |\n")
+}
+
+for (f in kinaselib_cf) {
+  desc <- case_when(
+    grepl("MEA", f, ignore.case = TRUE) ~ "KinaseLib MEA",
+    grepl("GSEA", f, ignore.case = TRUE) ~ "KinaseLib GSEA",
+    TRUE ~ "KinaseLib"
+  )
+  cat(sprintf("| %s | [View](PTM_CF_DPU/KinaseLib/%s) |\n", desc, f))
+}
+
+if (length(cf_xlsx) > 0) {
+  for (f in cf_xlsx) {
+    cat(sprintf("| Data | [%s](PTM_CF_DPU/%s) |\n", f, f))
+  }
+}
+```
+
+---
+
+*Generated on `r Sys.Date()`*

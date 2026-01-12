@@ -1,0 +1,32 @@
+[project]
+name = "ptm-pipeline"
+version = "0.1.0"
+description = "Deploy phosphoproteomics PTM analysis pipeline to new projects"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    { name = "Witold Wolski" }
+]
+dependencies = [
+    "click>=8.0",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/wolski/ptm-pipeline"
+Repository = "https://github.com/wolski/ptm-pipeline"
+
+[project.scripts]
+ptm-pipeline = "ptm_pipeline.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ptm_pipeline"]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"template" = "share/ptm-pipeline/template"

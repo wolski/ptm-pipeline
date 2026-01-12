@@ -1,0 +1,574 @@
+# SnakefileV2.smk - Unified PTM Analysis Pipeline (Refactored)
+# Uses standardized output format with combined PTM_results.xlsx
+#
+# Usage (choose one config file per experiment):
+#   snakemake -s SnakefileV2.smk --configfile config_shp2.yaml -j1 all
+#   snakemake -s SnakefileV2.smk --configfile config_mek.yaml -j1 all
+#   snakemake -s SnakefileV2.smk --configfile config_erk.yaml -j1 all
+
+from helpers import get_parquet_path, build_analysis_lookups
+
+# No default configfile - must be specified on command line
+
+# Convenience aliases from config
+SRC = config["src"]
+DIR_OUT = config["dir_out"]
+PHOSPHO_DEA_DIR = config["phospho_dea_dir"]
+PROTEIN_DEA_DIR = config["protein_dea_dir"]
+ANNOT_FILE = config["annot_file"]
+MAX_FIG = config["max_fig"]
+CONTRASTS = config["contrasts"]
+KL_REPO = config["kinaselib"]["repo"]
+KL_KIN_TYPE = config["kinaselib"]["kin_type"]
+KL_THRESHOLD = config["kinaselib"]["threshold"]
+KL_PERMUTATIONS = config["kinaselib"]["permutations"]
+MEA_THREADS = config["threads"]["mea"]
+
+# PTMsigDB preprocessing config
+PTMSIGDB_CATS = config.get("ptmsigdb", {}).get("keep_categories", "KINASE,PATH")
+PTMSIGDB_TRIM = config.get("ptmsigdb", {}).get("trim_to", 15)
+PTMSIGDB_DIR = config.get("ptmsigdb", {}).get("output_dir", "data/ptmsigdb")
+PTMSIGDB_FILE = f"{PTMSIGDB_DIR}/ptmsigdb_filtered_{PTMSIGDB_CATS.replace(',', '_')}_{PTMSIGDB_TRIM}mer.rds"
+
+# Build lookup dictionaries from config
+LOOKUPS = build_analysis_lookups(DIR_OUT, config["analyses"])
+ANALYSIS_TYPES = LOOKUPS["types"]  # ["dpa", "dpu", "cf"]
+ANALYSIS_DIRS = LOOKUPS["dirs"]     # {"dpa": "PTM_V2_Testing/PTM_DPA", ...}
+ANALYSIS_SHEETS = LOOKUPS["sheets"] # {"dpa": "DPA", ...}
+ANALYSIS_XLSX = LOOKUPS["xlsx_inputs"]
+ANALYSIS_STAT_COLS = LOOKUPS["stat_columns"]
+
+# Global wildcard constraints
+wildcard_constraints:
+    analysis = "dpa|dpu|cf"
+
+# Helper to get directory from analysis type
+def adir(analysis):
+    """Get output directory for analysis type."""
+    return ANALYSIS_DIRS[analysis]
+
+def aupper(analysis):
+    """Get uppercase name for analysis type."""
+    return ANALYSIS_SHEETS[analysis]
+
+# ============================================================
+# Default target
+# ============================================================
+rule all:
+    input:
+        # Combined results
+        f"{DIR_OUT}/PTM_results.xlsx",
+        f"{DIR_OUT}/PTM_results.rds",
+        # N-to-C plots (all analyses)
+        expand("{d}/Analysis_n_to_c.html", d=ANALYSIS_DIRS.values()),
+        # Seqlogo plots (all analyses)
+        expand("{d}/Analysis_seqlogo.html", d=ANALYSIS_DIRS.values()),
+        # PTM-SEA (all analyses)
+        [f"{adir(a)}/PTMSEA/PTMSEA_{aupper(a)}.html" for a in ANALYSIS_TYPES],
+        # KinaseLib GSEA (all analyses)
+        [f"{adir(a)}/KinaseLib/Analysis_KinaseLib_{aupper(a)}.html" for a in ANALYSIS_TYPES],
+        # KinaseLib Vis_MEA (all analyses)
+        expand("{d}/KinaseLib/Vis_MEA.html", d=ANALYSIS_DIRS.values()),
+        # Top index page
+        f"{DIR_OUT}/index.html",
+        # Zip archive
+        f"{DIR_OUT}.zip"
+
+# ============================================================
+# DEA Rules (generate base Excel files)
+# ============================================================
+rule analysis_dea:
+    input:
+        rmd = f"{SRC}/Analysis_DPA_DPU.Rmd",
+        utils_script = f"{SRC}/dea_utils.R"
+    output:
+        dpa_xlsx = f"{ANALYSIS_DIRS['dpa']}/Result_DPA.xlsx",
+        dpu_xlsx = f"{ANALYSIS_DIRS['dpu']}/Result_DPU.xlsx",
+        html = f"{ANALYSIS_DIRS['dpa']}/Analysis_DPA_DPU.html"
+    log:
+        f"{DIR_OUT}/logs/analysis_dea.log"
+    params:
+        output_base = DIR_OUT,
+        utils_script = f"{SRC}/dea_utils.R",
+        output_dir = ANALYSIS_DIRS['dpa'],
+        phospho_dea_dir = PHOSPHO_DEA_DIR,
+        protein_dea_dir = PROTEIN_DEA_DIR
+    shell:
+        """
+        mkdir -p {DIR_OUT}/logs {ANALYSIS_DIRS[dpa]} {ANALYSIS_DIRS[dpu]}
+        Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.output_dir}', \
+            output_format='html_document', knit_root_dir=getwd(), \
+            params=list(output_base='{params.output_base}', \
+            utils_script='{params.utils_script}', \
+            phospho_dea_dir='{params.phospho_dea_dir}', \
+            protein_dea_dir='{params.protein_dea_dir}'))" 2>&1 | tee {log:q}
+        """
+
+rule cf_dea:
+    input:
+        rmd = f"{SRC}/Analysis_CorrectFirst_DEA.Rmd",
+        utils_script = f"{SRC}/dea_utils.R"
+    output:
+        xlsx = f"{ANALYSIS_DIRS['cf']}/CorrectFirst_PTM_usage_results.xlsx",
+        html = f"{ANALYSIS_DIRS['cf']}/Analysis_CorrectFirst_DEA.html"
+    log:
+        f"{DIR_OUT}/logs/cf_dea.log"
+    params:
+        output_base = DIR_OUT,
+        utils_script = f"{SRC}/dea_utils.R",
+        output_dir = ANALYSIS_DIRS['cf'],
+        phospho_dea_dir = PHOSPHO_DEA_DIR,
+        protein_dea_dir = PROTEIN_DEA_DIR,
+        annot_file = ANNOT_FILE
+    shell:
+        """
+        mkdir -p {DIR_OUT}/logs {ANALYSIS_DIRS[cf]}
+        Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.output_dir}', \
+            output_format='html_document', knit_root_dir=getwd(), \
+            params=list(output_base='{params.output_base}', \
+            utils_script='{params.utils_script}', \
+            phospho_dea_dir='{params.phospho_dea_dir}', \
+            protein_dea_dir='{params.protein_dea_dir}', \
+            annot_file='{params.annot_file}'))" \
+            2>&1 | tee {log:q}
+        """
+
+# ============================================================
+# Combine Results
+# ============================================================
+rule combine_results:
+    input:
+        script = f"{SRC}/combine_ptm_results.R",
+        dpa = f"{ANALYSIS_DIRS['dpa']}/Result_DPA.xlsx",
+        dpu = f"{ANALYSIS_DIRS['dpu']}/Result_DPU.xlsx",
+        cf = f"{ANALYSIS_DIRS['cf']}/CorrectFirst_PTM_usage_results.xlsx"
+    output:
+        xlsx = f"{DIR_OUT}/PTM_results.xlsx",
+        rds = f"{DIR_OUT}/PTM_results.rds"
+    log:
+        f"{DIR_OUT}/logs/combine_results.log"
+    params:
+        protein_pq = get_parquet_path(PROTEIN_DEA_DIR),
+        site_pq = get_parquet_path(PHOSPHO_DEA_DIR)
+    shell:
+        """
+        mkdir -p {DIR_OUT}/logs
+        Rscript {input.script:q} \
+            {input.dpa:q} {input.dpu:q} {input.cf:q} \
+            {params.protein_pq:q} {params.site_pq:q} \
+            {output.xlsx:q} {output.rds:q} 2>&1 | tee {log:q}
+        """
+
+# ============================================================
+# N-to-C Analysis (one rule per analysis type)
+# ============================================================
+for _analysis in ANALYSIS_TYPES:
+    rule:
+        name: f"n_to_c_{_analysis}"
+        input:
+            rmd = f"{SRC}/Analysis_n_to_c.Rmd",
+            xlsx = f"{DIR_OUT}/PTM_results.xlsx"
+        output:
+            html = f"{adir(_analysis)}/Analysis_n_to_c.html"
+        log:
+            f"{adir(_analysis)}/logs/n_to_c.log"
+        params:
+            xlsx_file = f"{DIR_OUT}/PTM_results.xlsx",
+            sheet = ANALYSIS_SHEETS[_analysis],
+            analysis_type = _analysis,
+            output_dir_param = adir(_analysis),
+            max_fig = MAX_FIG,
+            rmd_output_dir = adir(_analysis)
+        shell:
+            """
+            mkdir -p """ + adir(_analysis) + """/logs
+            Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
+                output_format='html_document', knit_root_dir=getwd(), \
+                params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}', \
+                analysis_type='{params.analysis_type}', output_dir='{params.output_dir_param}', \
+                max_fig={params.max_fig}))" 2>&1 | tee {log:q}
+            """
+
+# ============================================================
+# Seqlogo Analysis (one rule per analysis type)
+# ============================================================
+for _analysis in ANALYSIS_TYPES:
+    rule:
+        name: f"seqlogo_{_analysis}"
+        input:
+            rmd = f"{SRC}/Analysis_seqlogo.Rmd",
+            xlsx = f"{DIR_OUT}/PTM_results.xlsx"
+        output:
+            html = f"{adir(_analysis)}/Analysis_seqlogo.html"
+        log:
+            f"{adir(_analysis)}/logs/seqlogo.log"
+        params:
+            xlsx_file = f"{DIR_OUT}/PTM_results.xlsx",
+            sheet = ANALYSIS_SHEETS[_analysis],
+            rmd_output_dir = adir(_analysis)
+        shell:
+            """
+            mkdir -p """ + adir(_analysis) + """/logs
+            Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
+                output_format='html_document', knit_root_dir=getwd(), \
+                params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}'))" \
+                2>&1 | tee {log:q}
+            """
+
+# ============================================================
+# PTMsigDB Preprocessing
+# Downloads human+mouse PTMsigDB, filters categories, trims sequences
+# ============================================================
+rule prep_ptmsigdb:
+    output:
+        rds = PTMSIGDB_FILE,
+        gmt = PTMSIGDB_FILE.replace(".rds", ".gmt")
+    log:
+        f"{PTMSIGDB_DIR}/logs/prep_ptmsigdb.log"
+    params:
+        output_dir = PTMSIGDB_DIR,
+        keep_cats = PTMSIGDB_CATS,
+        trim_to = PTMSIGDB_TRIM
+    shell:
+        """
+        mkdir -p {params.output_dir}/logs
+        Rscript {SRC}/prep_ptmsigdb.R \
+            --output_dir {params.output_dir:q} \
+            --keep_categories {params.keep_cats} \
+            --trim_to {params.trim_to} 2>&1 | tee {log:q}
+        """
+
+# ============================================================
+# PTM-SEA Analysis (one rule per analysis type)
+# ============================================================
+for _analysis in ANALYSIS_TYPES:
+    rule:
+        name: f"ptmsea_{_analysis}"
+        input:
+            rmd = f"{SRC}/PTMSEA_analysis.Rmd",
+            xlsx = f"{DIR_OUT}/PTM_results.xlsx",
+            ptmsigdb = PTMSIGDB_FILE
+        output:
+            html = f"{adir(_analysis)}/PTMSEA/PTMSEA_{aupper(_analysis)}.html"
+        log:
+            f"{adir(_analysis)}/logs/ptmsea.log"
+        params:
+            xlsx_file = f"{DIR_OUT}/PTM_results.xlsx",
+            sheet = ANALYSIS_SHEETS[_analysis],
+            stat_column = ANALYSIS_STAT_COLS[_analysis],
+            analysis_type = aupper(_analysis),
+            output_dir_param = f"{adir(_analysis)}/PTMSEA",
+            rmd_output_dir = f"{adir(_analysis)}/PTMSEA",
+            final_html = f"PTMSEA_{aupper(_analysis)}.html",
+            ptmsigdb_file = PTMSIGDB_FILE
+        shell:
+            """
+            mkdir -p """ + adir(_analysis) + """/logs """ + adir(_analysis) + """/PTMSEA
+            Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
+                output_format='html_document', knit_root_dir=getwd(), \
+                params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}', \
+                stat_column='{params.stat_column}', analysis_type='{params.analysis_type}', \
+                output_dir='{params.output_dir_param}', ptmsigdb_file='{params.ptmsigdb_file}'))" 2>&1 | tee {log:q}
+            mv {params.rmd_output_dir}/PTMSEA_analysis.html {output.html:q}
+            """
+
+# ============================================================
+# KinaseLib Prep (one rule per analysis type)
+# Generates seqwindows.tsv and MEA .rnk files for each contrast
+# ============================================================
+for _analysis in ANALYSIS_TYPES:
+    _rnk_files = [f"{adir(_analysis)}/KinaseLib/{aupper(_analysis)}_MEA_{c}.rnk" for c in CONTRASTS]
+    rule:
+        name: f"prep_kinaselib_{_analysis}"
+        input:
+            script = f"{SRC}/prep_kinaselib.R",
+            xlsx = f"{adir(_analysis)}/{ANALYSIS_XLSX[_analysis]}"
+        output:
+            seqwindows = f"{adir(_analysis)}/KinaseLib/{aupper(_analysis)}_seqwindows.tsv",
+            rnk_files = _rnk_files
+        log:
+            f"{adir(_analysis)}/logs/prep_kinaselib.log"
+        params:
+            output_dir = f"{adir(_analysis)}/KinaseLib",
+            analysis_type = aupper(_analysis)
+        shell:
+            """
+            mkdir -p """ + adir(_analysis) + """/logs """ + adir(_analysis) + """/KinaseLib
+            Rscript {input.script:q} {input.xlsx:q} {params.output_dir:q} \
+                {params.analysis_type} 2>&1 | tee {log:q}
+            """
+
+# ============================================================
+# KinaseLib scan-motifs (one rule per analysis type)
+# ============================================================
+for _analysis in ANALYSIS_TYPES:
+    rule:
+        name: f"scan_motifs_{_analysis}"
+        input:
+            f"{adir(_analysis)}/KinaseLib/{aupper(_analysis)}_seqwindows.tsv"
+        output:
+            f"{adir(_analysis)}/KinaseLib/term2gene.csv"
+        log:
+            f"{adir(_analysis)}/logs/scan_motifs.log"
+        params:
+            repo = KL_REPO,
+            kin_type = KL_KIN_TYPE,
+            threshold = KL_THRESHOLD
+        shell:
+            """
+            mkdir -p """ + adir(_analysis) + """/logs
+            uv tool run --from {params.repo} scan-motifs {input:q} \
+                --seq-col SequenceWindow \
+                --output {output:q} \
+                --kin-type {params.kin_type} \
+                --threshold {params.threshold} \
+                --term2gene 2>&1 | tee {log:q}
+            """
+
+# ============================================================
+# KinaseLib run-mea (wildcard for contrast)
+# ============================================================
+for _analysis in ANALYSIS_TYPES:
+    rule:
+        name: f"run_mea_{_analysis}"
+        input:
+            seqwindows = f"{adir(_analysis)}/KinaseLib/{aupper(_analysis)}_seqwindows.tsv",
+            rnk = f"{adir(_analysis)}/KinaseLib/{aupper(_analysis)}_MEA_{{contrast}}.rnk"
+        output:
+            f"{adir(_analysis)}/KinaseLib/mea_{{contrast}}.csv"
+        log:
+            f"{adir(_analysis)}/logs/mea_{{contrast}}.log"
+        threads: MEA_THREADS
+        params:
+            repo = KL_REPO,
+            kin_type = KL_KIN_TYPE,
+            threshold = KL_THRESHOLD,
+            permutations = KL_PERMUTATIONS
+        shell:
+            """
+            mkdir -p """ + adir(_analysis) + """/logs
+            uv tool run --from {params.repo} run-mea {input.rnk:q} \
+                --seq-col SequenceWindow \
+                --rank-col statistic.site \
+                --output {output:q} \
+                --kin-type {params.kin_type} \
+                --threshold {params.threshold} \
+                --permutations {params.permutations} \
+                --threads {threads} 2>&1 | tee {log:q}
+            """
+
+# ============================================================
+# KinaseLib Vis_MEA (one rule per analysis type)
+# ============================================================
+for _analysis in ANALYSIS_TYPES:
+    rule:
+        name: f"vis_mea_{_analysis}"
+        input:
+            rmd = f"{SRC}/Vis_MEA.Rmd",
+            mea_files = expand(f"{adir(_analysis)}/KinaseLib/mea_{{c}}.csv", c=CONTRASTS)
+        output:
+            html = f"{adir(_analysis)}/KinaseLib/Vis_MEA.html"
+        log:
+            f"{adir(_analysis)}/logs/vis_mea.log"
+        params:
+            kinaselib_dir = f"{adir(_analysis)}/KinaseLib",
+            analysis_type = aupper(_analysis),
+            rmd_output_dir = f"{adir(_analysis)}/KinaseLib"
+        shell:
+            """
+            mkdir -p """ + adir(_analysis) + """/logs
+            Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
+                output_format='html_document', knit_root_dir=getwd(), \
+                params=list(kinaselib_dir='{params.kinaselib_dir}', \
+                analysis_type='{params.analysis_type}'))" 2>&1 | tee {log:q}
+            """
+
+# ============================================================
+# KinaseLib GSEA Analysis (one rule per analysis type)
+# ============================================================
+for _analysis in ANALYSIS_TYPES:
+    rule:
+        name: f"analysis_kinaselib_{_analysis}"
+        input:
+            rmd = f"{SRC}/Analysis_KinaseLibrary_GSEA.Rmd",
+            xlsx = f"{adir(_analysis)}/{ANALYSIS_XLSX[_analysis]}",
+            term2gene = f"{adir(_analysis)}/KinaseLib/term2gene.csv"
+        output:
+            html = f"{adir(_analysis)}/KinaseLib/Analysis_KinaseLib_{aupper(_analysis)}.html"
+        log:
+            f"{adir(_analysis)}/logs/analysis_kinaselib.log"
+        params:
+            xlsx_file = f"{adir(_analysis)}/{ANALYSIS_XLSX[_analysis]}",
+            term2gene_file = f"{adir(_analysis)}/KinaseLib/term2gene.csv",
+            analysis_type = aupper(_analysis),
+            output_dir_param = f"{adir(_analysis)}/KinaseLib",
+            rmd_output_dir = f"{adir(_analysis)}/KinaseLib"
+        shell:
+            """
+            mkdir -p """ + adir(_analysis) + """/logs
+            Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
+                output_format='html_document', knit_root_dir=getwd(), \
+                params=list(xlsx_file='{params.xlsx_file}', term2gene_file='{params.term2gene_file}', \
+                analysis_type='{params.analysis_type}', output_dir='{params.output_dir_param}'))" \
+                2>&1 | tee {log:q}
+            mv {params.rmd_output_dir}/Analysis_KinaseLibrary_GSEA.html {output.html:q}
+            """
+
+# ============================================================
+# Index Pages (one rule per analysis type)
+# ============================================================
+for _analysis in ANALYSIS_TYPES:
+    _desc = {
+        "dpa": "Differential PTM Abundance - raw PTM signal changes",
+        "dpu": "Differential PTM Usage - protein-normalized changes",
+        "cf": "CorrectFirst PTM Analysis"
+    }[_analysis]
+    rule:
+        name: f"index_{_analysis}"
+        input:
+            rmd = f"{SRC}/create_index.Rmd",
+            seqlogo = f"{adir(_analysis)}/Analysis_seqlogo.html",
+            n_to_c = f"{adir(_analysis)}/Analysis_n_to_c.html",
+            ptmsea = f"{adir(_analysis)}/PTMSEA/PTMSEA_{aupper(_analysis)}.html",
+            kinaselib = f"{adir(_analysis)}/KinaseLib/Analysis_KinaseLib_{aupper(_analysis)}.html",
+            vis_mea = f"{adir(_analysis)}/KinaseLib/Vis_MEA.html"
+        output:
+            html = f"{adir(_analysis)}/index.html"
+        log:
+            f"{adir(_analysis)}/logs/index.log"
+        params:
+            folder = adir(_analysis),
+            title = f"{aupper(_analysis)} Results",
+            description = _desc,
+            rmd_output_dir = adir(_analysis)
+        shell:
+            """
+            mkdir -p """ + adir(_analysis) + """/logs
+            Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
+                output_format='html_document', knit_root_dir=getwd(), \
+                params=list(folder='{params.folder}', title='{params.title}', \
+                description='{params.description}'))" 2>&1 | tee {log:q}
+            mv {params.rmd_output_dir}/create_index.html {output.html:q}
+            """
+
+rule top_index:
+    input:
+        rmd = f"{SRC}/create_top_index.Rmd",
+        indices = [f"{adir(a)}/index.html" for a in ANALYSIS_TYPES]
+    output:
+        html = f"{DIR_OUT}/index.html"
+    log:
+        f"{DIR_OUT}/logs/top_index.log"
+    params:
+        folder = DIR_OUT,
+        rmd_output_dir = DIR_OUT
+    shell:
+        """
+        mkdir -p {DIR_OUT}/logs
+        Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
+            output_format='html_document', knit_root_dir=getwd(), \
+            params=list(folder='{params.folder}'))" 2>&1 | tee {log:q}
+        mv {params.rmd_output_dir}/create_top_index.html {output.html:q}
+        """
+
+# ============================================================
+# Convenience targets
+# ============================================================
+rule combine:
+    input:
+        f"{DIR_OUT}/PTM_results.xlsx",
+        f"{DIR_OUT}/PTM_results.rds"
+
+rule n_to_c_all:
+    input:
+        expand("{d}/Analysis_n_to_c.html", d=ANALYSIS_DIRS.values())
+
+rule seqlogo_all:
+    input:
+        expand("{d}/Analysis_seqlogo.html", d=ANALYSIS_DIRS.values())
+
+rule dea:
+    input:
+        f"{ANALYSIS_DIRS['dpa']}/Result_DPA.xlsx",
+        f"{ANALYSIS_DIRS['dpu']}/Result_DPU.xlsx",
+        f"{ANALYSIS_DIRS['cf']}/CorrectFirst_PTM_usage_results.xlsx"
+
+rule index:
+    input:
+        f"{DIR_OUT}/index.html"
+
+rule ptmsea_all:
+    input:
+        [f"{adir(a)}/PTMSEA/PTMSEA_{aupper(a)}.html" for a in ANALYSIS_TYPES]
+
+rule kinaselib_all:
+    input:
+        [f"{adir(a)}/KinaseLib/Analysis_KinaseLib_{aupper(a)}.html" for a in ANALYSIS_TYPES]
+
+rule vis_mea_all:
+    input:
+        expand("{d}/KinaseLib/Vis_MEA.html", d=ANALYSIS_DIRS.values())
+
+# ============================================================
+# Clean
+# ============================================================
+rule clean:
+    params:
+        dir = DIR_OUT
+    shell:
+        "rm -rf {params.dir:q}"
+
+# ============================================================
+# Zip output folder
+# ============================================================
+rule zip:
+    input:
+        f"{DIR_OUT}/index.html"  # Ensures full pipeline completed
+    output:
+        f"{DIR_OUT}.zip"
+    params:
+        dir = DIR_OUT
+    shell:
+        """
+        cd $(dirname {params.dir:q}) && \
+        zip -r $(basename {params.dir:q}).zip $(basename {params.dir:q}) \
+            -x '*.snakemake*' -x '*/.snakemake/*' -x '*/logs/*'
+        """
+
+# ============================================================
+# Help
+# ============================================================
+rule help:
+    run:
+        print(f"""
+SnakefileV2 - Unified PTM Analysis Pipeline (Refactored)
+=========================================================
+
+MAIN TARGETS:
+  all              Full pipeline
+  zip              Zip output folder (runs full pipeline first)
+  dea              Generate base Excel files (DPA, DPU, CF)
+  combine          Create combined PTM_results.xlsx/rds
+  n_to_c_all       Generate all n_to_c plots
+  seqlogo_all      Generate all seqlogo plots
+  ptmsea_all       Generate all PTM-SEA analyses
+  kinaselib_all    Generate all KinaseLib GSEA analyses
+  vis_mea_all      Generate all MEA visualization reports
+  index            Generate all index.html pages
+  clean            Remove output directory
+
+OUTPUT FILES:
+  {DIR_OUT}/PTM_results.xlsx    Combined Excel with sheets: DPA, DPU, CF, abundances
+  {DIR_OUT}/PTM_results.rds     Same data as list of data.frames
+
+USAGE:
+  snakemake -s SnakefileV2.smk -j1 <target>
+  snakemake -s SnakefileV2.smk -n <target>   # Dry-run
+  snakemake -s SnakefileV2.smk --lint        # Check workflow
+
+CONFIG:
+  Edit config.yaml to change settings
+
+OUTPUT:
+  Results go to: {DIR_OUT}/
+        """)
