@@ -526,7 +526,7 @@ rule clean:
         "rm -rf {params.dir:q}"
 
 # ============================================================
-# Zip output folder
+# Zip output folder with DEA inputs
 # ============================================================
 rule zip:
     input:
@@ -534,11 +534,12 @@ rule zip:
     output:
         f"{DIR_OUT}.zip"
     params:
-        dir = DIR_OUT
+        dir = DIR_OUT,
+        phospho = PHOSPHO_DEA_DIR,
+        protein = PROTEIN_DEA_DIR
     shell:
         """
-        cd $(dirname {params.dir:q}) && \
-        zip -r $(basename {params.dir:q}).zip $(basename {params.dir:q}) \
+        zip -r {output:q} {params.dir:q} {params.phospho:q} {params.protein:q} \
             -x '*.snakemake*' -x '*/.snakemake/*' -x '*/logs/*'
         """
 

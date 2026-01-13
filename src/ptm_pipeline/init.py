@@ -63,7 +63,7 @@ def copy_template_files(project_dir: Path, dry_run: bool = False) -> list[str]:
     copied_files = []
 
     # Files to copy at root level
-    root_files = ["SnakefileV2.smk", "helpers.py"]
+    root_files = ["SnakefileV2.smk", "helpers.py", "Makefile"]
 
     for filename in root_files:
         src = template_dir / filename

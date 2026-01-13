@@ -17,12 +17,24 @@ uv tool upgrade ptm-pipeline
 cd ~/Dropbox/DataAnalysis/o40XXX_NewProject
 # DEA folders should already exist from prolfquapp
 
-ptm-pipeline init                # Auto-detect DEA folders, generate config
-ptm-pipeline validate            # Check dependencies
-snakemake -s SnakefileV2.smk --configfile ptm_config.yaml -j1 all
+ptm-pipeline init    # Auto-detect DEA folders, generate config
+make                 # Run the pipeline (or: make all)
 ```
 
-### Commands
+### Makefile Targets
+
+| Target | Description |
+|--------|-------------|
+| `make help` | Show available targets |
+| `make all` | Run the full pipeline |
+| `make dry-run` | Show what would be executed |
+| `make validate` | Validate project setup |
+| `make clean` | Remove output files (keeps config) |
+| `make install` | Install ptm-pipeline tool |
+| `make upgrade` | Upgrade to latest version |
+| `make update` | Update pipeline files (keeps config) |
+
+### CLI Commands
 
 | Command | Description |
 |---------|-------------|
@@ -46,6 +58,7 @@ After `ptm-pipeline init`:
 o40XXX_NewProject/
 ├── DEA_*/...
 ├── ptm_config.yaml       # Generated config
+├── Makefile              # Convenience targets
 ├── SnakefileV2.smk       # Pipeline
 ├── helpers.py
 └── src/                  # R/Rmd analysis files
