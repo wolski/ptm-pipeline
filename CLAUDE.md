@@ -1,0 +1,64 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+PTM Pipeline is a deployment tool for phosphoproteomics PTM (Post-Translational Modification) analysis. It scaffolds Snakemake-based workflows into projects that already have DEA (Differential Expression Analysis) output from `prolfquapp`.
+
+## Commands
+
+```bash
+# Development
+uv sync                              # Install dependencies
+uv run ptm-pipeline --help           # Run CLI in development mode
+
+# CLI commands
+ptm-pipeline init [DIR]              # Initialize pipeline (auto-discovers DEA folders)
+ptm-pipeline validate [DIR]          # Check dependencies and setup
+ptm-pipeline update [DIR]            # Update pipeline files, preserve config
+ptm-pipeline info [DIR]              # Show discovered DEA folders (debugging)
+
+# Run the analysis pipeline (after init)
+snakemake -s SnakefileV2.smk --configfile ptm_config.yaml -j1 all
+```
+
+## Architecture
+
+```
+src/ptm_pipeline/
+├── cli.py          # Click-based CLI entry point (4 commands)
+├── discover.py     # Auto-detection of DEA folders and annotation files
+├── init.py         # Project initialization and template copying
+├── config.py       # YAML config generation
+└── validate.py     # Environment validation (files, R packages, tools)
+
+template/                      # Copied to target projects on init
+├── SnakefileV2.smk           # Main Snakemake orchestration
+├── helpers.py                # Snakemake helper functions
+└── src/                      # R/Rmd analysis scripts
+    ├── Analysis_DPA_DPU.Rmd
+    ├── Analysis_CorrectFirst_DEA.Rmd
+    └── ...
+```
+
+## Key Patterns
+
+**DEA Folder Discovery** (`discover.py`):
+- Phospho patterns: `DEA_*_WUphospho_*`, `DEA_*_WUcombined_*`, `DEA_*_*STY*`
+- Protein patterns: `DEA_*_WUprot_*`, `DEA_*_WUtotal_*`
+- Annotation files: `Inputs_*/*_annot_*.tsv` or `Inputs_*/*_dataset*.tsv`
+
+**Template Location** (`init.py`):
+- Three fallback paths: development (`./template`), installed (`importlib.resources`), system (`share/ptm-pipeline/template`)
+
+**Analysis Types** (Snakemake):
+- DPA: Differential PTM Abundance
+- DPU: Differential PTM Usage
+- CF: CorrectFirst (protein-corrected analysis)
+
+## Dependencies
+
+- Python: uv (not pip) - see pyproject.toml
+- R packages: prolfquapp, prophosqua, tidyverse, readxl, writexl, arrow, clusterProfiler, ggseqlogo
+- External: Snakemake, kinase-library (accessed via `uv tool run`)
