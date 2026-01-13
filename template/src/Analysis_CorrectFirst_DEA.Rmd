@@ -184,9 +184,37 @@ cat("Built models for", length(models$modeldf), "PTM sites\n")
 ## Define Contrasts
 
 ```{r defineContrasts}
-contrasts <- annot$Contrast
-names(contrasts) <- annot$ContrastName
-contrasts <- contrasts[!is.na(contrasts)]
+# Support two annotation formats:
+# 1. Explicit: has Contrast and ContrastName columns
+# 2. Dataset: has Group and Control columns (C=control, T=treatment)
+
+if (all(c("Contrast", "ContrastName") %in% colnames(annot))) {
+  # Format 1: Explicit contrasts
+  contrasts <- annot$Contrast
+  names(contrasts) <- annot$ContrastName
+  contrasts <- contrasts[!is.na(contrasts) & nchar(contrasts) > 0]
+} else if (all(c("Group", "Control") %in% colnames(annot))) {
+  # Format 2: Derive contrasts from Group/Control columns
+  # Control='C' means control group, Control='T' means treatment
+  levels_df <- annot |>
+    dplyr::select(Group, Control) |>
+    dplyr::distinct()
+
+  control_groups <- levels_df$Group[levels_df$Control == "C"]
+  treatment_groups <- levels_df$Group[levels_df$Control == "T"]
+
+  # Generate contrasts: treatment - control (with G_ prefix for prolfqua)
+  contrasts <- character()
+  for (trt in sort(treatment_groups)) {
+    for (ctrl in sort(control_groups)) {
+      contrast_name <- paste0(trt, "_vs_", ctrl)
+      contrast_formula <- paste0("G_", trt, " - G_", ctrl)
+      contrasts[contrast_name] <- contrast_formula
+    }
+  }
+} else {
+  stop("Annotation file must have either (Contrast, ContrastName) or (Group, Control) columns")
+}
 
 knitr::kable(
   data.frame(Contrast_Name = names(contrasts), Contrast = contrasts),

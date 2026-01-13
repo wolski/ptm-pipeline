@@ -13,3 +13,6 @@ build/
 
 # OS
 .DS_Store
+
+# Test data (real project data for development)
+test_data/
