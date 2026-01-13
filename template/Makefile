@@ -25,8 +25,8 @@ clean: ## Remove all output files (keeps config)
 install: ## Install ptm-pipeline tool
 	uv tool install git+https://github.com/wolski/ptm-pipeline
 
-upgrade: ## Upgrade ptm-pipeline to latest version
-	uv tool upgrade ptm-pipeline
+upgrade: ## Upgrade ptm-pipeline to latest version (reinstall from git)
+	uv tool install --reinstall git+https://github.com/wolski/ptm-pipeline
 
 update: ## Update pipeline files (keeps config)
 	ptm-pipeline update .

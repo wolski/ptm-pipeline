@@ -73,8 +73,10 @@ rule all:
         expand("{d}/KinaseLib/Vis_MEA.html", d=ANALYSIS_DIRS.values()),
         # Top index page
         f"{DIR_OUT}/index.html",
-        # Zip archive
-        f"{DIR_OUT}.zip"
+        # Zip archives (results + DEA inputs)
+        f"{DIR_OUT}.zip",
+        f"{PHOSPHO_DEA_DIR}.zip",
+        f"{PROTEIN_DEA_DIR}.zip"
 
 # ============================================================
 # DEA Rules (generate base Excel files)
@@ -526,21 +528,25 @@ rule clean:
         "rm -rf {params.dir:q}"
 
 # ============================================================
-# Zip output folder with DEA inputs
+# Zip archives (3 separate: results, phospho DEA, protein DEA)
 # ============================================================
 rule zip:
     input:
         f"{DIR_OUT}/index.html"  # Ensures full pipeline completed
     output:
-        f"{DIR_OUT}.zip"
+        results = f"{DIR_OUT}.zip",
+        phospho = f"{PHOSPHO_DEA_DIR}.zip",
+        protein = f"{PROTEIN_DEA_DIR}.zip"
     params:
         dir = DIR_OUT,
         phospho = PHOSPHO_DEA_DIR,
         protein = PROTEIN_DEA_DIR
     shell:
         """
-        zip -r {output:q} {params.dir:q} {params.phospho:q} {params.protein:q} \
+        zip -r {output.results:q} {params.dir:q} \
             -x '*.snakemake*' -x '*/.snakemake/*' -x '*/logs/*'
+        zip -r {output.phospho:q} {params.phospho:q}
+        zip -r {output.protein:q} {params.protein:q}
         """
 
 # ============================================================
