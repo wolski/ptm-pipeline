@@ -194,11 +194,19 @@ def init_project(
         for c in contrasts:
             console.print(f"    - {c}")
 
-    # Get experiment name
+    # Get experiment name - suggest first contrast as default
     if not name:
-        name = get_experiment_name(phospho_dir)
-        console.print(f"\n[bold]Auto-detected experiment name:[/bold] {name}")
-        name = Prompt.ask("Experiment name", default=name)
+        if contrasts and contrasts[0] != "contrast1":
+            default_name = contrasts[0]
+        else:
+            default_name = get_experiment_name(phospho_dir)
+        console.print(f"\n[bold]Suggested experiment name:[/bold] {default_name}")
+        name = Prompt.ask("Experiment name", default=default_name)
+
+    # Get significance thresholds
+    console.print("\n[bold]Significance thresholds for downstream analyses:[/bold]")
+    fdr = float(Prompt.ask("FDR threshold", default="0.25"))
+    log2fc = float(Prompt.ask("log2FC threshold", default="0.5"))
 
     # Generate config
     console.print("\n[bold]Generating configuration...[/bold]")
@@ -209,6 +217,8 @@ def init_project(
         contrasts=contrasts,
         output_name=name,
         project_dir=project_dir,
+        fdr=fdr,
+        log2fc=log2fc,
     )
 
     if dry_run:

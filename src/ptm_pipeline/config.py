@@ -12,6 +12,8 @@ def generate_config(
     contrasts: list[str],
     output_name: str | None = None,
     project_dir: Path | None = None,
+    fdr: float = 0.25,
+    log2fc: float = 0.5,
 ) -> dict:
     """Generate pipeline configuration dictionary.
 
@@ -22,6 +24,8 @@ def generate_config(
         contrasts: List of contrast names
         output_name: Optional name for output directory
         project_dir: Project root for making paths relative
+        fdr: FDR threshold for downstream analyses
+        log2fc: log2 fold change threshold for downstream analyses
 
     Returns:
         Configuration dictionary ready for YAML serialization
@@ -51,8 +55,8 @@ def generate_config(
         "max_fig": 10,
 
         # Significance thresholds for downstream analyses (seqlogo, n_to_c plots)
-        "fdr": 0.25,
-        "log2fc": 0.5,
+        "fdr": fdr,
+        "log2fc": log2fc,
 
         # DEA directories
         "phospho_dea_dir": phospho_path,
