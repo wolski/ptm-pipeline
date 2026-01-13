@@ -99,6 +99,8 @@ cat("Found", nrow(significant_sites), "significant sites\n")
 ## Count Significant Sites
 
 ```{r table_significant}
+stopifnot("No significant sites found. Adjust fdr/log2fc thresholds in config." = nrow(significant_sites) > 0)
+
 tx <- as.data.frame(with(significant_sites, table(contrast, regulation, modAA)))
 capt <- paste0("Number of significantly regulated sites by contrast, residue, and regulation direction (", params$sheet, ").")
 

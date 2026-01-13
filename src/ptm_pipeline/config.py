@@ -50,6 +50,10 @@ def generate_config(
         "dir_out": dir_out,
         "max_fig": 10,
 
+        # Significance thresholds for downstream analyses (seqlogo, n_to_c plots)
+        "fdr": 0.25,
+        "log2fc": 0.5,
+
         # DEA directories
         "phospho_dea_dir": phospho_path,
         "protein_dea_dir": protein_path,

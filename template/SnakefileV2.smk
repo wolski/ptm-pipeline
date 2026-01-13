@@ -18,6 +18,8 @@ PROTEIN_DEA_DIR = config["protein_dea_dir"]
 ANNOT_FILE = config["annot_file"]
 MAX_FIG = config["max_fig"]
 CONTRASTS = config["contrasts"]
+FDR_THRESHOLD = config.get("fdr", 0.05)
+LOG2FC_THRESHOLD = config.get("log2fc", 0.5)
 KL_REPO = config["kinaselib"]["repo"]
 KL_KIN_TYPE = config["kinaselib"]["kin_type"]
 KL_THRESHOLD = config["kinaselib"]["threshold"]
@@ -178,6 +180,8 @@ for _analysis in ANALYSIS_TYPES:
             analysis_type = _analysis,
             output_dir_param = adir(_analysis),
             max_fig = MAX_FIG,
+            fdr = FDR_THRESHOLD,
+            fc = LOG2FC_THRESHOLD,
             rmd_output_dir = adir(_analysis)
         shell:
             """
@@ -186,7 +190,7 @@ for _analysis in ANALYSIS_TYPES:
                 output_format='html_document', knit_root_dir=getwd(), \
                 params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}', \
                 analysis_type='{params.analysis_type}', output_dir='{params.output_dir_param}', \
-                max_fig={params.max_fig}))" 2>&1 | tee {log:q}
+                max_fig={params.max_fig}, fdr={params.fdr}, fc={params.fc}))" 2>&1 | tee {log:q}
             """
 
 # ============================================================
@@ -205,13 +209,16 @@ for _analysis in ANALYSIS_TYPES:
         params:
             xlsx_file = f"{DIR_OUT}/PTM_results.xlsx",
             sheet = ANALYSIS_SHEETS[_analysis],
+            fdr = FDR_THRESHOLD,
+            fc = LOG2FC_THRESHOLD,
             rmd_output_dir = adir(_analysis)
         shell:
             """
             mkdir -p """ + adir(_analysis) + """/logs
             Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
                 output_format='html_document', knit_root_dir=getwd(), \
-                params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}'))" \
+                params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}', \
+                fdr={params.fdr}, fc={params.fc}))" \
                 2>&1 | tee {log:q}
             """
 

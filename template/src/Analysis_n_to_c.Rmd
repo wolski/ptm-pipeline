@@ -131,6 +131,7 @@ if (params$analysis_type == "dpa") {
 }
 
 n_plots <- nrow(plot_result)
+stopifnot("No significant sites found. Adjust fdr/log2fc thresholds in config." = n_plots > 0)
 cat("Generated", n_plots, "multi-contrast plots\n")
 ```
 
