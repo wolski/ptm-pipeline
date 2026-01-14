@@ -1,9 +1,9 @@
-# SnakefileV2.smk - Unified PTM Analysis Pipeline (Refactored)
+# Snakefile - Unified PTM Analysis Pipeline
 # Uses standardized output format with combined PTM_results.xlsx
 #
 # Usage:
-#   snakemake -s SnakefileV2.smk -j1 all           # uses default ptm_config.yaml
-#   snakemake -s SnakefileV2.smk --configfile custom.yaml -j1 all
+#   snakemake -j1 all                              # uses default ptm_config.yaml
+#   snakemake --configfile custom.yaml -j1 all
 
 from helpers import get_parquet_path, build_analysis_lookups
 
@@ -582,7 +582,7 @@ rule zip:
 rule help:
     run:
         print(f"""
-SnakefileV2 - Unified PTM Analysis Pipeline (Refactored)
+PTM Analysis Pipeline
 =========================================================
 
 MAIN TARGETS:
@@ -603,9 +603,9 @@ OUTPUT FILES:
   {DIR_OUT}/PTM_results.rds     Same data as list of data.frames
 
 USAGE:
-  snakemake -s SnakefileV2.smk -j1 <target>
-  snakemake -s SnakefileV2.smk -n <target>   # Dry-run
-  snakemake -s SnakefileV2.smk --lint        # Check workflow
+  snakemake -j1 <target>
+  snakemake -n <target>   # Dry-run
+  snakemake --lint        # Check workflow
 
 CONFIG:
   Edit config.yaml to change settings

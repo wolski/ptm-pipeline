@@ -3,7 +3,7 @@
 
 # Configuration
 CONFIG := ptm_config.yaml
-SNAKEFILE := SnakefileV2.smk
+SNAKEFILE := Snakefile
 CORES := 1
 
 # Pipeline targets
