@@ -146,37 +146,6 @@ if (!"site" %in% colnames(combined_test_diff) && "protein_Id_site" %in% colnames
 }
 ```
 
-# Generate Reports
-
-```{r b9renderreportexpression, message=FALSE, eval=TRUE}
-drumm <- prolfquapp::make_DEA_config_R6(
-  PROJECTID = fgcz_project,
-  ORDERID = oid_fgcz,
-  WORKUNITID = descri
-)
-prophosqua::copy_phospho_integration()
-```
-
-```{r b9renderdocument, eval=TRUE, results="hide"}
-rmarkdown::render(
-  "_Overview_PhosphoAndIntegration_site.Rmd",
-  params = list(
-    data = combined_test_diff,
-    grp = drumm
-  ),
-  output_format = bookdown::html_document2(
-    toc = TRUE,
-    toc_float = TRUE
-  ),
-  envir = new.env(parent = globalenv())
-)
-
-file.copy(
-  from = "_Overview_PhosphoAndIntegration_site.html",
-  to = file.path(project_dir, res_dir_dpu, "Result_DPU.html")
-)
-```
-
 # Export Results
 
 ```{r storeptmusagexlsx}
@@ -188,6 +157,12 @@ writexl::write_xlsx(
 writexl::write_xlsx(
   list(combinedSiteProteinData = combined_site_prot),
   path = file.path(project_dir, res_dir_dpa, "Result_DPA.xlsx")
+)
+
+# Save intermediate data for DPU overview rendering (separate step)
+saveRDS(
+  combined_test_diff,
+  file = file.path(project_dir, res_dir_dpu, "combined_test_diff.rds")
 )
 ```
 

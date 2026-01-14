@@ -69,7 +69,9 @@ if (length(reports) > 0) {
     desc <- dplyr::case_when(
       grepl("n_to_c", f) ~ "N-to-C plots showing PTM positions along proteins",
       grepl("seqlogo", f) ~ "Sequence logo analysis of significant sites",
+      grepl("Result_DPU\\.html", f) ~ "DPU integration overview (phospho vs protein)",
       grepl("Result_", f) ~ "Interactive results overview",
+      grepl("Analysis_DPA_DPU", f) ~ "DPA/DPU analysis and data integration",
       grepl("Analysis_short", f) ~ "Main analysis report",
       TRUE ~ "Analysis report"
     )

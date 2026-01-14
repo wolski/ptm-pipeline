@@ -61,6 +61,8 @@ rule all:
         # Combined results
         f"{DIR_OUT}/PTM_results.xlsx",
         f"{DIR_OUT}/PTM_results.rds",
+        # DPU integration overview
+        f"{ANALYSIS_DIRS['dpu']}/Result_DPU.html",
         # N-to-C plots (all analyses)
         expand("{d}/Analysis_n_to_c.html", d=ANALYSIS_DIRS.values()),
         # Seqlogo plots (all analyses)
@@ -88,6 +90,7 @@ rule analysis_dea:
     output:
         dpa_xlsx = f"{ANALYSIS_DIRS['dpa']}/Result_DPA.xlsx",
         dpu_xlsx = f"{ANALYSIS_DIRS['dpu']}/Result_DPU.xlsx",
+        dpu_rds = f"{ANALYSIS_DIRS['dpu']}/combined_test_diff.rds",
         html = f"{ANALYSIS_DIRS['dpa']}/Analysis_DPA_DPU.html"
     log:
         f"{DIR_OUT}/logs/analysis_dea.log"
@@ -106,6 +109,22 @@ rule analysis_dea:
             utils_script='{params.utils_script}', \
             phospho_dea_dir='{params.phospho_dea_dir}', \
             protein_dea_dir='{params.protein_dea_dir}'))" 2>&1 | tee {log:q}
+        """
+
+rule render_dpu_overview:
+    input:
+        script = f"{SRC}/render_dpu_overview.R",
+        rds = f"{ANALYSIS_DIRS['dpu']}/combined_test_diff.rds"
+    output:
+        html = f"{ANALYSIS_DIRS['dpu']}/Result_DPU.html"
+    log:
+        f"{ANALYSIS_DIRS['dpu']}/logs/render_dpu_overview.log"
+    params:
+        output_dir = ANALYSIS_DIRS['dpu']
+    shell:
+        """
+        mkdir -p {ANALYSIS_DIRS[dpu]}/logs
+        Rscript {input.script:q} {input.rds:q} {params.output_dir:q} 2>&1 | tee {log:q}
         """
 
 rule cf_dea:
@@ -432,6 +451,10 @@ for _analysis in ANALYSIS_TYPES:
         "dpu": "Differential PTM Usage - protein-normalized changes",
         "cf": "CorrectFirst PTM Analysis"
     }[_analysis]
+    # DPU has an additional Result_DPU.html report
+    _extra_inputs = {
+        "dpu_overview": f"{adir(_analysis)}/Result_DPU.html"
+    } if _analysis == "dpu" else {}
     rule:
         name: f"index_{_analysis}"
         input:
@@ -440,7 +463,8 @@ for _analysis in ANALYSIS_TYPES:
             n_to_c = f"{adir(_analysis)}/Analysis_n_to_c.html",
             ptmsea = f"{adir(_analysis)}/PTMSEA/PTMSEA_{aupper(_analysis)}.html",
             kinaselib = f"{adir(_analysis)}/KinaseLib/Analysis_KinaseLib_{aupper(_analysis)}.html",
-            vis_mea = f"{adir(_analysis)}/KinaseLib/Analysis_MEA.html"
+            vis_mea = f"{adir(_analysis)}/KinaseLib/Analysis_MEA.html",
+            **_extra_inputs
         output:
             html = f"{adir(_analysis)}/index.html"
         log:
