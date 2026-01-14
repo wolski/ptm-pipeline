@@ -1,14 +1,14 @@
 # SnakefileV2.smk - Unified PTM Analysis Pipeline (Refactored)
 # Uses standardized output format with combined PTM_results.xlsx
 #
-# Usage (choose one config file per experiment):
-#   snakemake -s SnakefileV2.smk --configfile config_shp2.yaml -j1 all
-#   snakemake -s SnakefileV2.smk --configfile config_mek.yaml -j1 all
-#   snakemake -s SnakefileV2.smk --configfile config_erk.yaml -j1 all
+# Usage:
+#   snakemake -s SnakefileV2.smk -j1 all           # uses default ptm_config.yaml
+#   snakemake -s SnakefileV2.smk --configfile custom.yaml -j1 all
 
 from helpers import get_parquet_path, build_analysis_lookups
 
-# No default configfile - must be specified on command line
+# Default config file (can be overridden with --configfile)
+configfile: "ptm_config.yaml"
 
 # Convenience aliases from config
 SRC = config["src"]
@@ -523,9 +523,12 @@ rule vis_mea_all:
 # ============================================================
 rule clean:
     params:
-        dir = DIR_OUT
+        dir = DIR_OUT,
+        results_zip = f"{DIR_OUT}.zip",
+        phospho_zip = f"{PHOSPHO_DEA_DIR}.zip",
+        protein_zip = f"{PROTEIN_DEA_DIR}.zip"
     shell:
-        "rm -rf {params.dir:q}"
+        "rm -rf {params.dir:q} {params.results_zip:q} {params.phospho_zip:q} {params.protein_zip:q}"
 
 # ============================================================
 # Zip archives (3 separate: results, phospho DEA, protein DEA)

@@ -2,7 +2,6 @@
 
 from pathlib import Path
 import shutil
-import importlib.resources
 
 from rich.console import Console
 from rich.prompt import Prompt, Confirm
@@ -10,7 +9,6 @@ from rich.panel import Panel
 from rich.table import Table
 
 from .discover import (
-    find_dea_folders,
     find_all_dea_folders,
     find_annotation_file,
     parse_contrasts,

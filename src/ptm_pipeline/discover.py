@@ -2,46 +2,6 @@
 
 from pathlib import Path
 import csv
-from typing import NamedTuple
-
-
-class DEAFolders(NamedTuple):
-    """Container for discovered DEA folder paths."""
-    phospho: Path | None
-    protein: Path | None
-
-
-def find_dea_folders(project_dir: Path) -> DEAFolders:
-    """Find phospho and protein DEA folders in project directory.
-
-    Looks for patterns:
-    - Phospho: DEA_*_WUphospho_*, DEA_*_WUcombined_*, DEA_*_*STY*, DEA_*_*phospho*
-    - Protein: DEA_*_WUprot_*, DEA_*_WUtotal_*
-
-    Returns the most recent (by name, assuming date prefix) if multiple found.
-    """
-    # Phospho patterns - multiple naming conventions
-    phospho_dirs = set()
-    for pattern in ["DEA_*_WUphospho_*", "DEA_*_WUcombined_*", "DEA_*_*STY*"]:
-        phospho_dirs.update(project_dir.glob(pattern))
-    phospho_dirs = sorted(phospho_dirs, key=lambda x: x.name, reverse=True)
-
-    # Protein patterns
-    protein_dirs = sorted(
-        list(project_dir.glob("DEA_*_WUprot_*")) +
-        list(project_dir.glob("DEA_*_WUtotal_*")),
-        key=lambda x: x.name,
-        reverse=True
-    )
-
-    # Filter to only directories
-    phospho_dirs = [d for d in phospho_dirs if d.is_dir()]
-    protein_dirs = [d for d in protein_dirs if d.is_dir()]
-
-    return DEAFolders(
-        phospho=phospho_dirs[0] if phospho_dirs else None,
-        protein=protein_dirs[0] if protein_dirs else None,
-    )
 
 
 def find_all_dea_folders(project_dir: Path) -> dict[str, list[Path]]:

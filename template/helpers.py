@@ -5,7 +5,6 @@ and constructing file paths used by the Snakemake pipeline.
 """
 
 import glob
-from pathlib import Path
 
 
 def get_parquet_path(dea_dir: str) -> str:
@@ -27,36 +26,6 @@ def get_parquet_path(dea_dir: str) -> str:
     if not matches:
         raise ValueError(f"No parquet file found in {dea_dir}")
     return matches[0]
-
-
-def get_analysis_dir(dir_out: str, analyses_config: dict, analysis: str) -> str:
-    """Get output directory for an analysis type.
-
-    Args:
-        dir_out: Base output directory
-        analyses_config: Dictionary of analysis configurations
-        analysis: Analysis type key (dpa, dpu, cf)
-
-    Returns:
-        Full path to analysis output directory
-    """
-    return f"{dir_out}/{analyses_config[analysis]['subdir']}"
-
-
-def get_input_xlsx(dir_out: str, analyses_config: dict, analysis: str) -> str:
-    """Get input xlsx path for an analysis type.
-
-    Args:
-        dir_out: Base output directory
-        analyses_config: Dictionary of analysis configurations
-        analysis: Analysis type key (dpa, dpu, cf)
-
-    Returns:
-        Full path to input Excel file
-    """
-    subdir = analyses_config[analysis]["subdir"]
-    xlsx = analyses_config[analysis]["xlsx_input"]
-    return f"{dir_out}/{subdir}/{xlsx}"
 
 
 def build_analysis_lookups(dir_out: str, analyses_config: dict) -> dict:
