@@ -40,6 +40,9 @@ suppressPackageStartupMessages({
   library(patchwork)
 })
 
+# Load shared utilities
+source("src/feature_preparation.R")
+
 # Load development version if available
 if (file.exists("~/projects/prophosqua")) {
   devtools::load_all("~/projects/prophosqua", quiet = TRUE)
@@ -76,32 +79,8 @@ knitr::kable(data_info, caption = "Data Summary")
 ```
 
 ```{r prepare_data}
-# Prepare data for plotting functions
-# prophosqua functions expect specific column names
-
-if (params$analysis_type == "dpa") {
-  # DPA: n_to_c_expression_multicontrast expects diff.site, FDR.site, diff.protein
-  # Our standardized format already has these column names
-  plot_data <- data |>
-    dplyr::mutate(
-      # Add imputation_status if not present (required by function)
-      modelName.site = if ("modelName.site" %in% names(data)) modelName.site else "observed"
-    )
-} else {
-  # DPU/CF: n_to_c_usage_multicontrast expects diff_diff, FDR_I
-  # Rename from standardized format
-  plot_data <- data |>
-    dplyr::rename(
-      diff_diff = diff.site,
-      FDR_I = FDR.site,
-      tstatistic_I = statistic.site
-    ) |>
-    dplyr::mutate(
-      # Add columns expected by n_to_c_usage_multicontrast
-      modelName.site = "observed",
-      modelName.protein = "observed"
-    )
-}
+# Prepare data for plotting using shared function
+plot_data <- prepare_ntoc_data(data, params$analysis_type)
 
 all_contrasts <- unique(plot_data$contrast)
 cat("Found", length(all_contrasts), "contrasts:", paste(all_contrasts, collapse = ", "), "\n")

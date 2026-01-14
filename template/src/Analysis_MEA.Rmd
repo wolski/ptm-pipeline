@@ -30,6 +30,9 @@ library(ggplot2)
 library(purrr)
 library(forcats)
 library(writexl)
+
+# Load shared visualization utilities
+source("src/enrichment_viz_utils.R")
 ```
 
 # Overview
@@ -108,26 +111,14 @@ for (ctr in unique(mea_clean$contrast)) {
   n_sig <- sum(ctr_data$FDR < 0.1, na.rm = TRUE)
   cat("**Significant kinases (FDR < 0.1):** ", n_sig, "\n\n")
 
-  # Top kinases dotplot
-  plot_data <- ctr_data |>
-    arrange(FDR) |>
-    head(30) |>
-    mutate(kinase = fct_reorder(kinase, NES))
-
-  p <- ggplot(plot_data, aes(x = NES, y = kinase)) +
-    geom_point(aes(size = neg_log_fdr, color = NES, alpha = significant)) +
-    scale_color_gradient2(low = "blue", mid = "grey80", high = "red", midpoint = 0) +
-    scale_size_continuous(name = "-log10(FDR)", range = c(2, 8)) +
-    scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4), guide = "none") +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
-    theme_bw() +
-    theme(axis.text.y = element_text(size = 9)) +
-    labs(
-      title = paste0(params$analysis_type, " - ", ctr),
-      subtitle = "Top 30 kinases by FDR",
-      x = "Normalized Enrichment Score (NES)",
-      y = ""
-    )
+  # Top kinases dotplot using shared function
+  p <- plot_enrichment_dotplot(
+    ctr_data,
+    item_col = "kinase",
+    fdr_col = "FDR",
+    title = paste0(params$analysis_type, " - ", ctr),
+    subtitle = "Top 30 kinases by FDR"
+  )
   print(p)
   cat("\n\n")
 
@@ -151,71 +142,26 @@ for (ctr in unique(mea_clean$contrast)) {
 # Summary Heatmap
 
 ```{r heatmap, fig.height=10, fig.width=12}
-# Get top kinases across all contrasts
-top_kinases <- mea_clean |>
-  filter(FDR < 0.15) |>
-  group_by(kinase) |>
-  summarize(min_fdr = min(FDR), .groups = "drop") |>
-  arrange(min_fdr) |>
-  head(30) |>
-  pull(kinase)
-
-heatmap_data <- mea_clean |>
-  filter(kinase %in% top_kinases) |>
-  mutate(
-    sig_label = case_when(
-      FDR < 0.01 ~ "***",
-      FDR < 0.05 ~ "**",
-      FDR < 0.1 ~ "*",
-      TRUE ~ ""
-    )
-  )
-
-ggplot(heatmap_data, aes(x = contrast, y = fct_reorder(kinase, NES), fill = NES)) +
-  geom_tile(color = "white") +
-  geom_text(aes(label = sig_label), color = "black", size = 4) +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
-    axis.text.y = element_text(size = 9)
-  ) +
-  labs(
-    title = paste0("MEA Summary Heatmap - ", params$analysis_type),
-    subtitle = "Top kinases (* p<0.1, ** p<0.05, *** p<0.01)",
-    x = "", y = "", fill = "NES"
-  )
+# Using shared heatmap function
+plot_enrichment_heatmap(
+  mea_clean,
+  item_col = "kinase",
+  fdr_col = "FDR",
+  n_top = 30,
+  title = paste0("MEA Summary Heatmap - ", params$analysis_type)
+)
 ```
 
 # Volcano Plot
 
 ```{r volcano, fig.height=8, fig.width=12}
-# Volcano plot faceted by contrast with labels for top kinases
-ggplot(mea_clean, aes(x = NES, y = neg_log_fdr)) +
-  geom_point(aes(color = direction, alpha = significant), size = 2) +
-  geom_hline(yintercept = -log10(0.1), linetype = "dashed", color = "grey30") +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey30") +
-  geom_text(
-    data = mea_clean |>
-      filter(FDR < 0.05) |>
-      group_by(contrast) |>
-      slice_min(FDR, n = 5),
-    aes(label = kinase),
-    size = 2.5,
-    hjust = -0.1,
-    check_overlap = TRUE
-  ) +
-  scale_color_manual(values = c("Up" = "red", "Down" = "blue", "NS" = "grey50")) +
-  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.3), guide = "none") +
-  facet_wrap(~contrast, scales = "free") +
-  theme_bw() +
-  labs(
-    title = paste0("MEA Volcano Plots - ", params$analysis_type),
-    subtitle = "Dashed line: FDR = 0.1; Labels: top 5 by FDR per contrast",
-    x = "NES",
-    y = "-log10(FDR)",
-    color = "Direction"
-  )
+# Using shared volcano function
+plot_enrichment_volcano(
+  mea_clean,
+  item_col = "kinase",
+  fdr_col = "FDR",
+  title = paste0("MEA Volcano Plots - ", params$analysis_type)
+)
 ```
 
 # Diagnostics

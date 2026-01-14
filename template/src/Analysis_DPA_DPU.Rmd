@@ -49,7 +49,6 @@ This analysis integrates total proteome and phosphoproteome DEA results to compu
 ```{r b1specifyinputs}
 library(prophosqua)
 
-ptm_feature <- "singlesite"
 wu_id <- "CustomPhosphoAnalysis"
 fgcz_project <- "PTM_analysis"
 oid_fgcz <- "fgcz_project"

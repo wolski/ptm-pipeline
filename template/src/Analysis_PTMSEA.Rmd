@@ -56,6 +56,9 @@ library(readxl)
 library(writexl)
 library(ggplot2)
 
+# Load shared visualization utilities
+source("src/enrichment_viz_utils.R")
+
 # Load development version if available
 if (file.exists("~/projects/prophosqua")) {
   devtools::load_all("~/projects/prophosqua", quiet = TRUE)
@@ -205,20 +208,12 @@ knitr::kable(results_info, caption = paste(params$analysis_type, "PTM-SEA Result
 # Results by Contrast {.tabset .tabset-pills}
 
 ```{r contrastPlots, results='asis', fig.height=8}
-# Extract all results into data frame
-all_clean <- names(results) |>
-  map_dfr(function(ct) {
-    results[[ct]]@result |>
-      as_tibble() |>
-      mutate(contrast = ct)
-  }) |>
+# Extract all results into data frame using shared function
+all_clean <- extract_gsea_results(results) |>
   mutate(
     pathway = ID,
     pathway_short = gsub("^(KINASE|PERT|PATH|DISEASE)-PSP_", "", ID) |>
-      substr(1, 40),
-    neg_log_fdr = -log10(pmax(p.adjust, 1e-10)),
-    direction = case_when(NES > 0 ~ "Up", NES < 0 ~ "Down", TRUE ~ "NS"),
-    significant = p.adjust < 0.1
+      substr(1, 40)
   )
 
 for (ctr in unique(all_clean$contrast)) {
@@ -228,25 +223,14 @@ for (ctr in unique(all_clean$contrast)) {
   n_sig <- sum(ctr_data$p.adjust < 0.1, na.rm = TRUE)
   cat("**Significant pathways (FDR < 0.1):** ", n_sig, "\n\n")
 
-  plot_data <- ctr_data |>
-    arrange(p.adjust) |>
-    head(30) |>
-    mutate(pathway_short = fct_reorder(pathway_short, NES))
-
-  p <- ggplot(plot_data, aes(x = NES, y = pathway_short)) +
-    geom_point(aes(size = neg_log_fdr, color = NES, alpha = significant)) +
-    scale_color_gradient2(low = "blue", mid = "grey80", high = "red", midpoint = 0) +
-    scale_size_continuous(name = "-log10(FDR)", range = c(2, 8)) +
-    scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4), guide = "none") +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
-    theme_bw() +
-    theme(axis.text.y = element_text(size = 9)) +
-    labs(
-      title = paste0(params$analysis_type, " - ", ctr),
-      subtitle = "Top 30 pathways by FDR",
-      x = "Normalized Enrichment Score (NES)",
-      y = ""
-    )
+  # Using shared dotplot function
+  p <- plot_enrichment_dotplot(
+    ctr_data,
+    item_col = "pathway_short",
+    fdr_col = "p.adjust",
+    title = paste0(params$analysis_type, " - ", ctr),
+    subtitle = "Top 30 pathways by FDR"
+  )
   print(p)
   cat("\n\n")
 
@@ -324,135 +308,42 @@ for (ct in names(results)) {
 # Summary Heatmap
 
 ```{r summary_heatmap, fig.width=12, fig.height=10}
-# Extract all results into a single data frame
-all_results <- names(results) |>
-  map(function(ct) {
-    res <- results[[ct]]@result
-    tibble(
-      ID = as.character(res[["ID"]]),
-      NES = as.numeric(res[["NES"]]),
-      pvalue = as.numeric(res[["pvalue"]]),
-      p.adjust = as.numeric(res[["p.adjust"]]),
-      setSize = as.integer(res[["setSize"]]),
-      contrast = ct
-    )
-  }) |>
-  bind_rows()
-
 stopifnot(
- "No GSEA results - check min_size parameter and sequence overlap" = nrow(all_results) > 0
+ "No GSEA results - check min_size parameter and sequence overlap" = nrow(all_clean) > 0
 )
 
-# Find top pathways across all contrasts
-top_pathways <- all_results |>
-  filter(p.adjust < 0.15) |>
-  group_by(ID) |>
-  summarize(min_padj = min(p.adjust), .groups = "drop") |>
-  arrange(min_padj) |>
-  head(25) |>
-  pull(ID)
-
-heatmap_data <- all_results |>
-  filter(ID %in% top_pathways) |>
-  mutate(
-    pathway_short = gsub("^(KINASE|PERT|PATH|DISEASE)-PSP_", "", ID),
-    pathway_short = substr(pathway_short, 1, 40),
-    sig_label = case_when(
-      p.adjust < 0.01 ~ "***",
-      p.adjust < 0.05 ~ "**",
-      p.adjust < 0.1 ~ "*",
-      TRUE ~ ""
-    )
-  )
-
-ggplot(heatmap_data, aes(x = contrast, y = reorder(pathway_short, NES), fill = NES)) +
-  geom_tile(color = "white") +
-  geom_text(aes(label = sig_label), color = "black", size = 4) +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
-    axis.text.y = element_text(size = 9)
-  ) +
-  labs(
-    title = paste0("PTM-SEA Summary - ", params$analysis_type),
-    subtitle = "Top signatures (* p<0.1, ** p<0.05, *** p<0.01)",
-    x = "", y = "", fill = "NES"
-  )
+# Using shared heatmap function with pathway_short labels
+plot_enrichment_heatmap(
+  all_clean,
+  item_col = "ID",
+  fdr_col = "p.adjust",
+  n_top = 25,
+  item_label_col = "pathway_short",
+  title = paste0("PTM-SEA Summary - ", params$analysis_type)
+)
 ```
 
 # Volcano Plot
 
 ```{r volcano_plot, fig.width=12, fig.height=8}
-# Prepare data for volcano plot
-volcano_data <- all_results |>
-  mutate(
-    neg_log_fdr = -log10(pmax(p.adjust, 1e-10)),
-    direction = case_when(
-      NES > 0 ~ "Up",
-      NES < 0 ~ "Down",
-      TRUE ~ "NS"
-    ),
-    significant = p.adjust < 0.1,
-    pathway_short = gsub("^(KINASE|PERT|PATH|DISEASE)-PSP_", "", ID)
-  )
-
-ggplot(volcano_data, aes(x = NES, y = neg_log_fdr)) +
-  geom_point(aes(color = direction, alpha = significant), size = 2) +
-  geom_hline(yintercept = -log10(0.1), linetype = "dashed", color = "grey30") +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey30") +
-  geom_text(
-    data = volcano_data |>
-      filter(p.adjust < 0.05) |>
-      group_by(contrast) |>
-      slice_min(p.adjust, n = 5),
-    aes(label = pathway_short),
-    size = 2.5,
-    hjust = -0.1,
-    check_overlap = TRUE
-  ) +
-  scale_color_manual(values = c("Up" = "red", "Down" = "blue", "NS" = "grey50")) +
-  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.3), guide = "none") +
-  facet_wrap(~contrast, scales = "free") +
-  theme_bw() +
-  labs(
-    title = paste(params$analysis_type, "- PTM-SEA Volcano Plots"),
-    subtitle = "Dashed line: FDR = 0.1; Labels: top 5 by FDR per contrast",
-    x = "NES",
-    y = "-log10(FDR)",
-    color = "Direction"
-  )
+# Using shared volcano function
+plot_enrichment_volcano(
+  all_clean,
+  item_col = "pathway_short",
+  fdr_col = "p.adjust",
+  title = paste(params$analysis_type, "- PTM-SEA Volcano Plots")
+)
 ```
 
 # Export All GSEA Plots to PDF
 
 ```{r export_gsea_pdf, results='hide'}
-# Export all GSEA enrichment plots to PDF
+# Export all GSEA enrichment plots to PDF using shared function
 pdf_file <- file.path(params$output_dir, paste0("GSEA_plots_", params$analysis_type, ".pdf"))
-pdf(pdf_file, width = 10, height = 6)
-
-n_gsea_plots <- 0
-for (ct in names(results)) {
-  res <- results[[ct]]
-  all_genesets <- res@result |>
-    as_tibble() |>
-    filter(p.adjust < 0.25) |>
-    arrange(pvalue) |>
-    pull(ID)
-
-  for (geneset in all_genesets) {
-    row <- res@result |> as_tibble() |> filter(ID == geneset)
-    pathway_short <- gsub("^(KINASE|PERT|PATH|DISEASE)-PSP_", "", geneset)
-    nes_val <- round(row$NES, 2)
-    fdr <- signif(row$p.adjust, 2)
-
-    p <- gseaplot2(res, geneSetID = geneset,
-      title = paste0(ct, ": ", pathway_short, " (NES=", nes_val, ", FDR=", fdr, ")"))
-    print(p)
-    n_gsea_plots <- n_gsea_plots + 1
-  }
-}
-dev.off()
+n_gsea_plots <- export_gsea_plots_pdf(
+  results, pdf_file,
+  prefix_pattern = "^(KINASE|PERT|PATH|DISEASE)-PSP_"
+)
 cat("Exported", n_gsea_plots, "GSEA plots to:", pdf_file, "\n")
 ```
 

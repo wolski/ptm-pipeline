@@ -69,8 +69,8 @@ rule all:
         [f"{adir(a)}/PTMSEA/PTMSEA_{aupper(a)}.html" for a in ANALYSIS_TYPES],
         # KinaseLib GSEA (all analyses)
         [f"{adir(a)}/KinaseLib/Analysis_KinaseLib_{aupper(a)}.html" for a in ANALYSIS_TYPES],
-        # KinaseLib Vis_MEA (all analyses)
-        expand("{d}/KinaseLib/Vis_MEA.html", d=ANALYSIS_DIRS.values()),
+        # KinaseLib MEA Visualization (all analyses)
+        expand("{d}/KinaseLib/Analysis_MEA.html", d=ANALYSIS_DIRS.values()),
         # Top index page
         f"{DIR_OUT}/index.html",
         # Zip archives (results + DEA inputs)
@@ -254,7 +254,7 @@ for _analysis in ANALYSIS_TYPES:
     rule:
         name: f"ptmsea_{_analysis}"
         input:
-            rmd = f"{SRC}/PTMSEA_analysis.Rmd",
+            rmd = f"{SRC}/Analysis_PTMSEA.Rmd",
             xlsx = f"{DIR_OUT}/PTM_results.xlsx",
             ptmsigdb = PTMSIGDB_FILE
         output:
@@ -278,7 +278,7 @@ for _analysis in ANALYSIS_TYPES:
                 params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}', \
                 stat_column='{params.stat_column}', analysis_type='{params.analysis_type}', \
                 output_dir='{params.output_dir_param}', ptmsigdb_file='{params.ptmsigdb_file}'))" 2>&1 | tee {log:q}
-            mv {params.rmd_output_dir}/PTMSEA_analysis.html {output.html:q}
+            mv {params.rmd_output_dir}/Analysis_PTMSEA.html {output.html:q}
             """
 
 # ============================================================
@@ -367,16 +367,16 @@ for _analysis in ANALYSIS_TYPES:
             """
 
 # ============================================================
-# KinaseLib Vis_MEA (one rule per analysis type)
+# KinaseLib MEA Visualization (one rule per analysis type)
 # ============================================================
 for _analysis in ANALYSIS_TYPES:
     rule:
         name: f"vis_mea_{_analysis}"
         input:
-            rmd = f"{SRC}/Vis_MEA.Rmd",
+            rmd = f"{SRC}/Analysis_MEA.Rmd",
             mea_files = expand(f"{adir(_analysis)}/KinaseLib/mea_{{c}}.csv", c=CONTRASTS)
         output:
-            html = f"{adir(_analysis)}/KinaseLib/Vis_MEA.html"
+            html = f"{adir(_analysis)}/KinaseLib/Analysis_MEA.html"
         log:
             f"{adir(_analysis)}/logs/vis_mea.log"
         params:
@@ -440,7 +440,7 @@ for _analysis in ANALYSIS_TYPES:
             n_to_c = f"{adir(_analysis)}/Analysis_n_to_c.html",
             ptmsea = f"{adir(_analysis)}/PTMSEA/PTMSEA_{aupper(_analysis)}.html",
             kinaselib = f"{adir(_analysis)}/KinaseLib/Analysis_KinaseLib_{aupper(_analysis)}.html",
-            vis_mea = f"{adir(_analysis)}/KinaseLib/Vis_MEA.html"
+            vis_mea = f"{adir(_analysis)}/KinaseLib/Analysis_MEA.html"
         output:
             html = f"{adir(_analysis)}/index.html"
         log:
@@ -516,7 +516,7 @@ rule kinaselib_all:
 
 rule vis_mea_all:
     input:
-        expand("{d}/KinaseLib/Vis_MEA.html", d=ANALYSIS_DIRS.values())
+        expand("{d}/KinaseLib/Analysis_MEA.html", d=ANALYSIS_DIRS.values())
 
 # ============================================================
 # Clean

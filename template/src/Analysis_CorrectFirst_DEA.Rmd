@@ -226,31 +226,21 @@ knitr::kable(
 
 ```{r computeTheContrasts}
 ctr <- prolfqua::Contrasts$new(models, contrasts)
-ctr_m <- prolfqua::ContrastsMissing$new(ptm_data, contrasts)
-ctr_all <- prolfqua::merge_contrasts_results(ctr, ctr_m)$merged
 ctr_df <- ctr$get_contrasts()
 
 ctr <- prolfqua::ContrastsModerated$new(ctr)
 ctr_df <- ctr$get_contrasts()
-
 
 cat("Computed contrasts for", nrow(ctr_df), "PTM site-contrast combinations\n")
 ```
 
 # Results
 
-## Volcano Plot (Model Only)
+## Volcano Plot
 
 ```{r figVolcanoModelOnly, fig.cap="Volcano plot (Model results only)"}
 ctr_plotter_model <- ctr$get_Plotter()
 ctr_plotter_model$volcano()$FDR
-```
-
-## Volcano Plot (Combined)
-
-```{r fig2volcanoCorrectFirst, fig.cap="Volcano plot showing -log10(FDR) vs PTM fold change.", inclue = FALSE, eval = FALSE}
-ctr_plotter <- ctr_all$get_Plotter()
-ctr_plotter$volcano()$FDR
 ```
 
 # Export Results

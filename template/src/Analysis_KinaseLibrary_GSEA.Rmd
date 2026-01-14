@@ -56,6 +56,9 @@ library(forcats)
 library(writexl)
 library(patchwork)
 library(DT)
+
+# Load shared visualization utilities
+source("src/enrichment_viz_utils.R")
 ```
 
 ```{r load-data}
@@ -206,19 +209,9 @@ knitr::kable(gsea_info, caption = paste(params$analysis_type, "GSEA Results Summ
 # Results by Contrast {.tabset .tabset-pills}
 
 ```{r contrastPlots, results='asis', fig.height=8}
-# Extract all results into data frame
-all_clean <- names(gsea_results) |>
-  map_dfr(function(ct) {
-    gsea_results[[ct]]@result |>
-      as_tibble() |>
-      mutate(contrast = ct)
-  }) |>
-  mutate(
-    kinase = ID,
-    neg_log_fdr = -log10(pmax(p.adjust, 1e-10)),
-    direction = case_when(NES > 0 ~ "Up", NES < 0 ~ "Down", TRUE ~ "NS"),
-    significant = p.adjust < 0.1
-  )
+# Extract all results into data frame using shared function
+all_clean <- extract_gsea_results(gsea_results) |>
+  mutate(kinase = ID)
 
 for (ctr in unique(all_clean$contrast)) {
   cat("\n\n## ", ctr, "\n\n")
@@ -227,25 +220,14 @@ for (ctr in unique(all_clean$contrast)) {
   n_sig <- sum(ctr_data$p.adjust < 0.1, na.rm = TRUE)
   cat("**Significant kinases (FDR < 0.1):** ", n_sig, "\n\n")
 
-  plot_data <- ctr_data |>
-    arrange(p.adjust) |>
-    head(30) |>
-    mutate(kinase = fct_reorder(kinase, NES))
-
-  p <- ggplot(plot_data, aes(x = NES, y = kinase)) +
-    geom_point(aes(size = neg_log_fdr, color = NES, alpha = significant)) +
-    scale_color_gradient2(low = "blue", mid = "grey80", high = "red", midpoint = 0) +
-    scale_size_continuous(name = "-log10(FDR)", range = c(2, 8)) +
-    scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.4), guide = "none") +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
-    theme_bw() +
-    theme(axis.text.y = element_text(size = 9)) +
-    labs(
-      title = paste0(params$analysis_type, " - ", ctr),
-      subtitle = "Top 30 kinases by FDR",
-      x = "Normalized Enrichment Score (NES)",
-      y = ""
-    )
+  # Using shared dotplot function
+  p <- plot_enrichment_dotplot(
+    ctr_data,
+    item_col = "kinase",
+    fdr_col = "p.adjust",
+    title = paste0(params$analysis_type, " - ", ctr),
+    subtitle = "Top 30 kinases by FDR"
+  )
   print(p)
   cat("\n\n")
 
@@ -298,95 +280,27 @@ wrap_plots(plots, ncol = 2)
 ### NES Heatmap
 
 ```{r nes-heatmap, fig.width=12, fig.height=10}
-# Extract NES values for significant kinases
-all_results_cp <- names(gsea_results) |>
-  map_dfr(function(ct) {
-    gsea_results[[ct]]@result |>
-      as_tibble() |>
-      mutate(contrast = ct)
-  })
-
-# Get top kinases across all contrasts
-top_kinases <- all_results_cp |>
-  filter(p.adjust < 0.25) |>
-  group_by(ID) |>
-  summarize(min_fdr = min(p.adjust), .groups = "drop") |>
-  arrange(min_fdr) |>
-  head(30) |>
-  pull(ID)
-
-heatmap_data <- all_results_cp |>
-  filter(ID %in% top_kinases) |>
-  mutate(
-    sig_label = case_when(
-      p.adjust < 0.01 ~ "***",
-      p.adjust < 0.05 ~ "**",
-      p.adjust < 0.1 ~ "*",
-      TRUE ~ ""
-    )
-  )
-
-ggplot(heatmap_data, aes(x = contrast, y = fct_reorder(ID, NES), fill = NES)) +
-  geom_tile(color = "white") +
-  geom_text(aes(label = sig_label), color = "black", size = 4) +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
-  theme_minimal() +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
-    axis.text.y = element_text(size = 9)
-  ) +
-  labs(
-    title = paste(params$analysis_type, "- Top Kinases by NES"),
-    subtitle = "* FDR<0.1, ** FDR<0.05, *** FDR<0.01",
-    x = "", y = "", fill = "NES"
-  )
+# Using shared heatmap function
+plot_enrichment_heatmap(
+  all_clean,
+  item_col = "ID",
+  fdr_col = "p.adjust",
+  fdr_filter = 0.25,
+  n_top = 30,
+  title = paste(params$analysis_type, "- Top Kinases by NES")
+)
 ```
 
 # Volcano Plot
 
 ```{r volcano-plot, fig.width=12, fig.height=8}
-# Prepare data for volcano plot
-volcano_data <- names(gsea_results) |>
-  map_dfr(function(ct) {
-    gsea_results[[ct]]@result |>
-      as_tibble() |>
-      mutate(contrast = ct)
-  }) |>
-  mutate(
-    neg_log_fdr = -log10(pmax(p.adjust, 1e-10)),
-    direction = case_when(
-      NES > 0 ~ "Up",
-      NES < 0 ~ "Down",
-      TRUE ~ "NS"
-    ),
-    significant = p.adjust < 0.1
-  )
-
-ggplot(volcano_data, aes(x = NES, y = neg_log_fdr)) +
-  geom_point(aes(color = direction, alpha = significant), size = 2) +
-  geom_hline(yintercept = -log10(0.1), linetype = "dashed", color = "grey30") +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey30") +
-  geom_text(
-    data = volcano_data |>
-      filter(p.adjust < 0.05) |>
-      group_by(contrast) |>
-      slice_min(p.adjust, n = 5),
-    aes(label = ID),
-    size = 2.5,
-    hjust = -0.1,
-    check_overlap = TRUE
-  ) +
-  scale_color_manual(values = c("Up" = "red", "Down" = "blue", "NS" = "grey50")) +
-  scale_alpha_manual(values = c("TRUE" = 1, "FALSE" = 0.3), guide = "none") +
-  facet_wrap(~contrast, scales = "free") +
-  theme_bw() +
-  labs(
-    title = paste(params$analysis_type, "- GSEA Volcano Plots"),
-    subtitle = "Dashed line: FDR = 0.1; Labels: top 5 by FDR per contrast",
-    x = "NES",
-    y = "-log10(FDR)",
-    color = "Direction"
-  )
+# Using shared volcano function
+plot_enrichment_volcano(
+  all_clean,
+  item_col = "ID",
+  fdr_col = "p.adjust",
+  title = paste(params$analysis_type, "- GSEA Volcano Plots")
+)
 ```
 
 # Diagnostics
@@ -409,31 +323,9 @@ knitr::kable(pval_diag, caption = paste("Raw p-value Distribution (", params$ana
 # Export All GSEA Plots to PDF
 
 ```{r export-gsea-pdf, results='hide'}
-# Export all GSEA enrichment plots to PDF
+# Export all GSEA enrichment plots to PDF using shared function
 pdf_file <- file.path(params$output_dir, paste0("GSEA_plots_", params$analysis_type, ".pdf"))
-pdf(pdf_file, width = 10, height = 6)
-
-n_plots <- 0
-for (ct in names(gsea_results)) {
-  res <- gsea_results[[ct]]
-  all_genesets <- res@result |>
-    as_tibble() |>
-    filter(p.adjust < 0.25) |>
-    arrange(pvalue) |>
-    pull(ID)
-
-  for (geneset in all_genesets) {
-    row <- res@result |> as_tibble() |> filter(ID == geneset)
-    nes_val <- round(row$NES, 2)
-    fdr <- signif(row$p.adjust, 2)
-
-    p <- gseaplot2(res, geneSetID = geneset,
-      title = paste0(ct, ": ", geneset, " (NES=", nes_val, ", FDR=", fdr, ")"))
-    print(p)
-    n_plots <- n_plots + 1
-  }
-}
-dev.off()
+n_plots <- export_gsea_plots_pdf(gsea_results, pdf_file)
 cat("Exported", n_plots, "GSEA plots to:", pdf_file, "\n")
 ```
 

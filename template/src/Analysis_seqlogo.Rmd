@@ -37,6 +37,9 @@ suppressPackageStartupMessages({
   library(prophosqua)
 })
 
+# Load shared utilities
+source("src/feature_preparation.R")
+
 is_docx <- knitr::pandoc_to() == "docx"
 if (length(is_docx) == 0) {
   is_docx <- TRUE
@@ -75,22 +78,13 @@ knitr::kable(data_info, caption = "Data Summary")
 Filter sites with |log2FC| > `r params$fc` and FDR < `r params$fdr`.
 
 ```{r filter_significant}
-# Standardized column names: diff.site, FDR.site, SequenceWindow
+# Use shared filtering function with sequence validation
 significant_sites <- data |>
-  dplyr::filter(
-    FDR.site < params$fdr,
-    abs(diff.site) > params$fc,
-    !is.na(posInProtein),
-    !is.na(SequenceWindow),
-    !grepl("^_", SequenceWindow),
-    !grepl("_$", SequenceWindow)
-  ) |>
-  dplyr::mutate(
-    regulation = dplyr::case_when(
-      diff.site > 0 ~ "upregulated",
-      diff.site < 0 ~ "downregulated",
-      TRUE ~ "no_change"
-    )
+  dplyr::filter(!is.na(posInProtein)) |>
+  filter_significant_sites(
+    fdr_threshold = params$fdr,
+    fc_threshold = params$fc,
+    require_sequence = TRUE
   )
 
 cat("Found", nrow(significant_sites), "significant sites\n")
@@ -123,9 +117,8 @@ if (is_docx) {
 Ensure the central residue matches the modified amino acid.
 
 ```{r validate_seq_window}
-significant_sites$central_aa <- toupper(substr(significant_sites$SequenceWindow, 8, 8))
-significant_sites <- significant_sites |>
-  dplyr::filter(central_aa == modAA)
+# Use shared validation function
+significant_sites <- validate_sequence_window(significant_sites)
 
 cat("After validation:", nrow(significant_sites), "sites remain\n")
 ```
