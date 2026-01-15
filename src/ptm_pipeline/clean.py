@@ -12,7 +12,7 @@ console = Console()
 # Files and directories created by init
 PIPELINE_FILES = [
     "ptm_config.yaml",
-    "SnakefileV2.smk",
+    "Snakefile",
     "helpers.py",
     "Makefile",
 ]
@@ -67,7 +67,7 @@ def clean_project(
 
     if not files and not dirs:
         console.print("[yellow]No pipeline files found to remove.[/yellow]")
-        console.print("  (Looking for: ptm_config.yaml, SnakefileV2.smk, helpers.py, Makefile, src/)")
+        console.print("  (Looking for: ptm_config.yaml, Snakefile, helpers.py, Makefile, src/)")
         return True
 
     # Show what will be removed

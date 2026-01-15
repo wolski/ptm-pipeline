@@ -103,7 +103,7 @@ def validate_project(project_dir: Path, quick: bool = False) -> bool:
             config = yaml.safe_load(f)
 
     # Check Snakefile
-    results.append(check_file_exists(project_dir / "SnakefileV2.smk", "SnakefileV2.smk"))
+    results.append(check_file_exists(project_dir / "Snakefile", "Snakefile"))
     results.append(check_file_exists(project_dir / "helpers.py", "helpers.py"))
 
     # Check src directory
@@ -156,7 +156,7 @@ def validate_project(project_dir: Path, quick: bool = False) -> bool:
     for r in results:
         status = "[green]PASS[/green]" if r.passed else "[red]FAIL[/red]"
         table.add_row(r.name, status, r.message)
-        if not r.passed and r.name in ["ptm_config.yaml", "SnakefileV2.smk", "Phospho DEA folder", "Protein DEA folder"]:
+        if not r.passed and r.name in ["ptm_config.yaml", "Snakefile", "Phospho DEA folder", "Protein DEA folder"]:
             critical_failed = True
 
     console.print(table)

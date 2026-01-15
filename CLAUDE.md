@@ -20,7 +20,7 @@ ptm-pipeline update [DIR]            # Update pipeline files, preserve config
 ptm-pipeline info [DIR]              # Show discovered DEA folders (debugging)
 
 # Run the analysis pipeline (after init)
-snakemake -s SnakefileV2.smk --configfile ptm_config.yaml -j1 all
+snakemake -s Snakefile --configfile ptm_config.yaml -j1 all
 ```
 
 ## Architecture
@@ -34,7 +34,7 @@ src/ptm_pipeline/
 └── validate.py     # Environment validation (files, R packages, tools)
 
 template/                      # Copied to target projects on init
-├── SnakefileV2.smk           # Main Snakemake orchestration
+├── Snakefile           # Main Snakemake orchestration
 ├── helpers.py                # Snakemake helper functions
 └── src/                      # R/Rmd analysis scripts
     ├── Analysis_DPA_DPU.Rmd

@@ -107,7 +107,7 @@ def update(directory: Path, dry_run: bool):
 def clean(directory: Path, dry_run: bool, force: bool):
     """Remove pipeline files created by init.
 
-    Removes ptm_config.yaml, SnakefileV2.smk, helpers.py, Makefile, and src/.
+    Removes ptm_config.yaml, Snakefile, helpers.py, Makefile, and src/.
     DEA folders and other project data are preserved.
 
     DIRECTORY defaults to current directory if not specified.

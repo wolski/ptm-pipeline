@@ -1,4 +1,4 @@
-"""Helper functions for SnakefileV2.smk
+"""Helper functions for Snakefile
 
 This module contains utility functions for finding DEA directories
 and constructing file paths used by the Snakemake pipeline.

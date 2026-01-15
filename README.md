@@ -60,7 +60,7 @@ o40XXX_NewProject/
 ├── DEA_*/...
 ├── ptm_config.yaml       # Generated config
 ├── Makefile              # Convenience targets
-├── SnakefileV2.smk       # Pipeline
+├── Snakefile       # Pipeline
 ├── helpers.py
 └── src/                  # R/Rmd analysis files
 ```

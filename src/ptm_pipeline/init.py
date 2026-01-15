@@ -61,7 +61,7 @@ def copy_template_files(project_dir: Path, dry_run: bool = False) -> list[str]:
     copied_files = []
 
     # Files to copy at root level
-    root_files = ["SnakefileV2.smk", "helpers.py", "Makefile"]
+    root_files = ["Snakefile", "helpers.py", "Makefile"]
 
     for filename in root_files:
         src = template_dir / filename
@@ -112,7 +112,7 @@ def init_project(
 
     # Check if already initialized
     config_file = project_dir / "ptm_config.yaml"
-    snakefile = project_dir / "SnakefileV2.smk"
+    snakefile = project_dir / "Snakefile"
 
     if (config_file.exists() or snakefile.exists()) and not force:
         console.print(
@@ -247,7 +247,7 @@ def init_project(
         console.print("[green]Pipeline initialized successfully![/green]")
         console.print("\nNext steps:")
         console.print(f"  1. Review ptm_config.yaml")
-        console.print(f"  2. Run: snakemake -s SnakefileV2.smk --configfile ptm_config.yaml -n all  # dry-run")
-        console.print(f"  3. Run: snakemake -s SnakefileV2.smk --configfile ptm_config.yaml -j1 all")
+        console.print(f"  2. Run: snakemake -s Snakefile --configfile ptm_config.yaml -n all  # dry-run")
+        console.print(f"  3. Run: snakemake -s Snakefile --configfile ptm_config.yaml -j1 all")
 
     return True
