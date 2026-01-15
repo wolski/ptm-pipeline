@@ -104,8 +104,8 @@ mea_xlsx <- link_if_exists(file.path(dpa_dir, "KinaseLib/MEA_DPA_results.xlsx"),
 cat(sprintf("| KinaseLib MEA | %s | %s |\n", mea_html, mea_xlsx))
 
 # Results xlsx
-results_xlsx <- link_if_exists(file.path(dpa_dir, "Result_DPA.xlsx"), "PTM_DPA/Result_DPA.xlsx")
-cat(sprintf("| Results Data | | %s |\n", results_xlsx))
+results_xlsx <- link_if_exists(file.path(dpa_dir, "Result_DPA.xlsx"), "PTM_DPA/Result_DPA.xlsx", "xlsx")
+cat(sprintf("| Results | | %s |\n", results_xlsx))
 ```
 
 ## DPU (Differential PTM Usage)
@@ -116,9 +116,10 @@ Phosphorylation stoichiometry changes, normalized by protein abundance. Reveals 
 cat("| Analysis | Report | Data / PDF |\n")
 cat("|----------|--------|------------|\n")
 
-# DPU Integration Overview (moved from DPA)
+# DPU Integration Overview + Results
 dpu_overview <- link_if_exists(file.path(dpu_dir, "Result_DPU.html"), "PTM_DPU/Result_DPU.html")
-cat(sprintf("| DPU Integration | %s | |\n", dpu_overview))
+dpu_xlsx <- link_if_exists(file.path(dpu_dir, "Result_DPU.xlsx"), "PTM_DPU/Result_DPU.xlsx", "xlsx")
+cat(sprintf("| DPU Integration | %s | %s |\n", dpu_overview, dpu_xlsx))
 
 # Main analysis (Analysis_DPA_DPU shows integration - belongs in DPU)
 main_html <- link_if_exists(file.path(dpa_dir, "Analysis_DPA_DPU.html"), "PTM_DPA/Analysis_DPA_DPU.html")
@@ -159,10 +160,6 @@ mea_html <- link_if_exists(file.path(dpu_dir, "KinaseLib/Analysis_MEA.html"),
 mea_xlsx <- link_if_exists(file.path(dpu_dir, "KinaseLib/MEA_DPU_results.xlsx"),
                            "PTM_DPU/KinaseLib/MEA_DPU_results.xlsx", "xlsx")
 cat(sprintf("| KinaseLib MEA | %s | %s |\n", mea_html, mea_xlsx))
-
-# Results xlsx
-results_xlsx <- link_if_exists(file.path(dpu_dir, "Result_DPU.xlsx"), "PTM_DPU/Result_DPU.xlsx")
-cat(sprintf("| Results Data | | %s |\n", results_xlsx))
 ```
 
 ## CorrectFirst (CF)
@@ -173,10 +170,12 @@ Alternative protein-correction: subtracts protein abundance before statistical t
 cat("| Analysis | Report | Data / PDF |\n")
 cat("|----------|--------|------------|\n")
 
-# Main analysis
+# Main analysis + Results
 main_html <- link_if_exists(file.path(cf_dir, "Analysis_CorrectFirst_DEA.html"),
                             "PTM_CF_DPU/Analysis_CorrectFirst_DEA.html")
-cat(sprintf("| Main Analysis | %s | |\n", main_html))
+main_xlsx <- link_if_exists(file.path(cf_dir, "CorrectFirst_PTM_usage_results.xlsx"),
+                            "PTM_CF_DPU/CorrectFirst_PTM_usage_results.xlsx", "xlsx")
+cat(sprintf("| Main Analysis | %s | %s |\n", main_html, main_xlsx))
 
 # N-to-C
 ntoc_html <- link_if_exists(file.path(cf_dir, "Analysis_n_to_c.html"), "PTM_CF_DPU/Analysis_n_to_c.html")
@@ -211,11 +210,6 @@ mea_html <- link_if_exists(file.path(cf_dir, "KinaseLib/Analysis_MEA.html"),
 mea_xlsx <- link_if_exists(file.path(cf_dir, "KinaseLib/MEA_CF_results.xlsx"),
                            "PTM_CF_DPU/KinaseLib/MEA_CF_results.xlsx", "xlsx")
 cat(sprintf("| KinaseLib MEA | %s | %s |\n", mea_html, mea_xlsx))
-
-# Results xlsx
-results_xlsx <- link_if_exists(file.path(cf_dir, "CorrectFirst_PTM_usage_results.xlsx"),
-                               "PTM_CF_DPU/CorrectFirst_PTM_usage_results.xlsx")
-cat(sprintf("| Results Data | | %s |\n", results_xlsx))
 ```
 
 ---

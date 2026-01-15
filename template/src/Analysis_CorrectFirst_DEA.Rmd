@@ -166,8 +166,8 @@ pl$intensity_distribution_density()
 
 ```
 
-```{r pca, fig.cap="Corrected PTM site abundances PCA plot.", fig.width=6, fig.height=6}
-pl$pca_plotly()
+```{r pca, fig.cap="Corrected PTM site abundances PCA plot."}
+pl$pca_plotly() |> plotly::layout(width = 600, height = 500)
 ```
 
 # Statistical Modeling
