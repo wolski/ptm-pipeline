@@ -16,7 +16,7 @@ output:
   html_document:
     toc: true
     toc_float: true
-    code_folding: show
+    code_folding: hide
   bookdown::html_document2:
     toc: true
   pdf_document:

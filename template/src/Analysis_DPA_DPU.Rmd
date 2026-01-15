@@ -12,13 +12,14 @@ output:
   html_document:
     toc: true
     toc_float: true
+    code_folding: hide
 editor_options:
   chunk_output_type: console
 ---
 
 ```{r setupglobal, include=FALSE}
 knitr::opts_chunk$set(
-  echo = FALSE,
+  echo = TRUE,
   message = FALSE,
   warning = FALSE,
   fig.width = 10,

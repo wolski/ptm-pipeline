@@ -385,12 +385,12 @@ for (ct in names(results)) {
 
 ```{r allResults}
 # All pathways across all contrasts
-all_results_dt <- all_results |>
+all_clean_dt <- all_clean |>
   select(contrast, pathway = ID, NES, pvalue, FDR = p.adjust, setSize) |>
   arrange(contrast, FDR) |>
   mutate(across(where(is.numeric), ~round(.x, 4)))
 
-DT::datatable(all_results_dt,
+DT::datatable(all_clean_dt,
   filter = "top",
   extensions = 'Buttons',
   options = list(pageLength = 15, scrollX = TRUE,
@@ -405,9 +405,9 @@ DT::datatable(all_results_dt,
 dir.create(params$output_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Prepare export data
-export_data <- all_results |> arrange(contrast, pvalue)
+export_data <- all_clean |> arrange(contrast, pvalue)
 
-export_list <- list(all_results = export_data)
+export_list <- list(all_clean = export_data)
 
 # Add per-contrast sheets
 for (ct in unique(export_data$contrast)) {

@@ -443,51 +443,19 @@ for _analysis in ANALYSIS_TYPES:
             """
 
 # ============================================================
-# Index Pages (one rule per analysis type)
+# Top Index Page
 # ============================================================
-for _analysis in ANALYSIS_TYPES:
-    _desc = {
-        "dpa": "Differential PTM Abundance - raw PTM signal changes",
-        "dpu": "Differential PTM Usage - protein-normalized changes",
-        "cf": "CorrectFirst PTM Analysis"
-    }[_analysis]
-    # DPU has an additional Result_DPU.html report
-    _extra_inputs = {
-        "dpu_overview": f"{adir(_analysis)}/Result_DPU.html"
-    } if _analysis == "dpu" else {}
-    rule:
-        name: f"index_{_analysis}"
-        input:
-            rmd = f"{SRC}/create_index.Rmd",
-            seqlogo = f"{adir(_analysis)}/Analysis_seqlogo.html",
-            n_to_c = f"{adir(_analysis)}/Analysis_n_to_c.html",
-            ptmsea = f"{adir(_analysis)}/PTMSEA/PTMSEA_{aupper(_analysis)}.html",
-            kinaselib = f"{adir(_analysis)}/KinaseLib/Analysis_KinaseLib_{aupper(_analysis)}.html",
-            vis_mea = f"{adir(_analysis)}/KinaseLib/Analysis_MEA.html",
-            **_extra_inputs
-        output:
-            html = f"{adir(_analysis)}/index.html"
-        log:
-            f"{adir(_analysis)}/logs/index.log"
-        params:
-            folder = adir(_analysis),
-            title = f"{aupper(_analysis)} Results",
-            description = _desc,
-            rmd_output_dir = adir(_analysis)
-        shell:
-            """
-            mkdir -p """ + adir(_analysis) + """/logs
-            Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
-                output_format='html_document', knit_root_dir=getwd(), \
-                params=list(folder='{params.folder}', title='{params.title}', \
-                description='{params.description}'))" 2>&1 | tee {log:q}
-            mv {params.rmd_output_dir}/create_index.html {output.html:q}
-            """
-
 rule top_index:
     input:
         rmd = f"{SRC}/create_top_index.Rmd",
-        indices = [f"{adir(a)}/index.html" for a in ANALYSIS_TYPES]
+        # Depend on actual analysis outputs
+        ptm_results = f"{DIR_OUT}/PTM_results.xlsx",
+        dpu_overview = f"{ANALYSIS_DIRS['dpu']}/Result_DPU.html",
+        n_to_c = expand("{d}/Analysis_n_to_c.html", d=ANALYSIS_DIRS.values()),
+        seqlogo = expand("{d}/Analysis_seqlogo.html", d=ANALYSIS_DIRS.values()),
+        ptmsea = [f"{adir(a)}/PTMSEA/PTMSEA_{aupper(a)}.html" for a in ANALYSIS_TYPES],
+        kinaselib = [f"{adir(a)}/KinaseLib/Analysis_KinaseLib_{aupper(a)}.html" for a in ANALYSIS_TYPES],
+        mea = expand("{d}/KinaseLib/Analysis_MEA.html", d=ANALYSIS_DIRS.values())
     output:
         html = f"{DIR_OUT}/index.html"
     log:
@@ -525,10 +493,6 @@ rule dea:
         f"{ANALYSIS_DIRS['dpa']}/Result_DPA.xlsx",
         f"{ANALYSIS_DIRS['dpu']}/Result_DPU.xlsx",
         f"{ANALYSIS_DIRS['cf']}/CorrectFirst_PTM_usage_results.xlsx"
-
-rule index:
-    input:
-        f"{DIR_OUT}/index.html"
 
 rule ptmsea_all:
     input:
@@ -595,7 +559,6 @@ MAIN TARGETS:
   ptmsea_all       Generate all PTM-SEA analyses
   kinaselib_all    Generate all KinaseLib GSEA analyses
   vis_mea_all      Generate all MEA visualization reports
-  index            Generate all index.html pages
   clean            Remove output directory
 
 OUTPUT FILES:
