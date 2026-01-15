@@ -1,17 +1,16 @@
 """CLI entry point for PTM pipeline."""
 
+from importlib.metadata import version
 from pathlib import Path
 import click
 from rich.console import Console
-
-from . import __version__
 
 
 console = Console()
 
 
 @click.group()
-@click.version_option(version=__version__)
+@click.version_option(version=version("ptm-pipeline"))
 def main():
     """PTM Pipeline - Deploy phosphoproteomics analysis pipeline to new projects."""
     pass
@@ -99,6 +98,29 @@ def update(directory: Path, dry_run: bool):
     else:
         console.print(f"\n[green]Updated {len(copied)} files.[/green]")
         console.print("  ptm_config.yaml was preserved.")
+
+
+@main.command()
+@click.argument("directory", type=click.Path(exists=True, path_type=Path), default=".")
+@click.option("--dry-run", is_flag=True, help="Show what would be removed")
+@click.option("--force", "-f", is_flag=True, help="Skip confirmation prompt")
+def clean(directory: Path, dry_run: bool, force: bool):
+    """Remove pipeline files created by init.
+
+    Removes ptm_config.yaml, SnakefileV2.smk, helpers.py, Makefile, and src/.
+    DEA folders and other project data are preserved.
+
+    DIRECTORY defaults to current directory if not specified.
+    """
+    from .clean import clean_project
+
+    success = clean_project(
+        project_dir=directory,
+        dry_run=dry_run,
+        force=force,
+    )
+
+    raise SystemExit(0 if success else 1)
 
 
 @main.command()

@@ -39,6 +39,7 @@ make                 # Run the pipeline (or: make all)
 | Command | Description |
 |---------|-------------|
 | `ptm-pipeline init [DIR] [--name NAME] [--dry-run] [--force]` | Initialize pipeline |
+| `ptm-pipeline clean [DIR] [--dry-run] [--force]` | Remove pipeline files (keeps DEA data) |
 | `ptm-pipeline validate [DIR] [--quick]` | Check dependencies |
 | `ptm-pipeline update [DIR] [--dry-run]` | Update pipeline files |
 | `ptm-pipeline info [DIR]` | Show discovered DEA folders |
