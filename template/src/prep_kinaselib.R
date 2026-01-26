@@ -120,7 +120,10 @@ for (ctr in contrasts) {
       SequenceWindow,
       statistic.site = .data[[config$diff_col]]
     ) |>
-    # Keep all sites (not just unique sequences) - some sequences may have different stats
+    # Deduplicate: keep row with max absolute statistic per SequenceWindow
+    group_by(SequenceWindow) |>
+    slice(which.max(abs(statistic.site))) |>
+    ungroup() |>
     arrange(desc(statistic.site))
 
   ctr_clean <- gsub("[^A-Za-z0-9_-]", "_", ctr)

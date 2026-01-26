@@ -1,6 +1,6 @@
 [project]
 name = "ptm-pipeline"
-version = "0.1.1"
+version = "0.1.3"
 description = "Deploy phosphoproteomics PTM analysis pipeline to new projects"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -9,9 +9,10 @@ authors = [
     { name = "Witold Wolski" }
 ]
 dependencies = [
-    "click>=8.0",
+    "cyclopts>=3.0",
     "pyyaml>=6.0",
     "rich>=13.0",
+    "kinase-library @ file:///Users/wolski/projects/kinase-library",
 ]
 
 [project.urls]
@@ -24,6 +25,9 @@ ptm-pipeline = "ptm_pipeline.cli:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ptm_pipeline"]

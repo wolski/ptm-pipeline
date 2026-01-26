@@ -91,6 +91,7 @@ def copy_template_files(project_dir: Path, dry_run: bool = False) -> list[str]:
 
 def init_project(
     project_dir: Path,
+    input_dir: Path | None = None,
     name: str | None = None,
     dry_run: bool = False,
     force: bool = False,
@@ -98,7 +99,8 @@ def init_project(
     """Initialize PTM pipeline in project directory.
 
     Args:
-        project_dir: Path to project directory
+        project_dir: Path to project directory (where pipeline files are written)
+        input_dir: Path to directory containing DEA folders (defaults to project_dir)
         name: Optional experiment name (auto-detected if not provided)
         dry_run: If True, only show what would be done
         force: If True, overwrite existing files
@@ -107,8 +109,12 @@ def init_project(
         True if initialization was successful
     """
     project_dir = project_dir.resolve()
+    input_dir = input_dir.resolve() if input_dir else project_dir
 
-    console.print(f"\n[bold]Initializing PTM pipeline in:[/bold] {project_dir}\n")
+    console.print(f"\n[bold]Initializing PTM pipeline in:[/bold] {project_dir}")
+    if input_dir != project_dir:
+        console.print(f"[bold]Discovering DEA folders in:[/bold] {input_dir}")
+    console.print()
 
     # Check if already initialized
     config_file = project_dir / "ptm_config.yaml"
@@ -124,7 +130,7 @@ def init_project(
 
     # Discover DEA folders
     console.print("[bold]Discovering DEA folders...[/bold]")
-    all_folders = find_all_dea_folders(project_dir)
+    all_folders = find_all_dea_folders(input_dir)
 
     if not all_folders["phospho"]:
         console.print("[red]Error:[/red] No phospho DEA folder found")
@@ -178,7 +184,7 @@ def init_project(
         console.print("  Expected: Inputs_*/*_annot_*.tsv or Inputs_*/*_dataset*.tsv")
         return False
 
-    console.print(f"  Found: {annot_file.relative_to(project_dir)}")
+    console.print(f"  Found: {annot_file.relative_to(input_dir)}")
 
     # Parse contrasts
     console.print("\n[bold]Parsing contrasts...[/bold]")

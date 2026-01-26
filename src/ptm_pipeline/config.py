@@ -2,7 +2,17 @@
 
 from pathlib import Path
 from datetime import date
+import os
 import yaml
+
+
+def _make_relative_path(path: Path, base: Path) -> str:
+    """Make path relative to base, handling paths outside base directory."""
+    try:
+        return str(path.relative_to(base))
+    except ValueError:
+        # Path is not under base, use os.path.relpath for "../" style paths
+        return os.path.relpath(path, base)
 
 
 def generate_config(
@@ -32,9 +42,9 @@ def generate_config(
     """
     # Make paths relative to project_dir if provided
     if project_dir:
-        phospho_path = str(phospho_dir.relative_to(project_dir))
-        protein_path = str(protein_dir.relative_to(project_dir))
-        annot_path = str(annot_file.relative_to(project_dir))
+        phospho_path = _make_relative_path(phospho_dir, project_dir)
+        protein_path = _make_relative_path(protein_dir, project_dir)
+        annot_path = _make_relative_path(annot_file, project_dir)
     else:
         phospho_path = str(phospho_dir)
         protein_path = str(protein_dir)

@@ -2,36 +2,46 @@
 
 from importlib.metadata import version
 from pathlib import Path
-import click
-from rich.console import Console
+from typing import Annotated
 
+import cyclopts
+from rich.console import Console
 
 console = Console()
 
+app = cyclopts.App(
+    name="ptm-pipeline",
+    help="PTM Pipeline - Deploy phosphoproteomics analysis pipeline to new projects.",
+    version=version("ptm-pipeline"),
+)
 
-@click.group()
-@click.version_option(version=version("ptm-pipeline"))
-def main():
-    """PTM Pipeline - Deploy phosphoproteomics analysis pipeline to new projects."""
-    pass
 
-
-@main.command()
-@click.argument("directory", type=click.Path(exists=True, path_type=Path), default=".")
-@click.option("--name", "-n", help="Experiment name (auto-detected if not provided)")
-@click.option("--dry-run", is_flag=True, help="Show what would be done without making changes")
-@click.option("--force", "-f", is_flag=True, help="Overwrite existing files")
-def init(directory: Path, name: str | None, dry_run: bool, force: bool):
+@app.command
+def init(
+    input_dir: Annotated[Path, cyclopts.Parameter(help="Directory containing DEA folders")] = Path("."),
+    output_dir: Annotated[Path, cyclopts.Parameter(help="Output directory for pipeline files (defaults to current directory)")] = Path("."),
+    *,
+    name: Annotated[str | None, cyclopts.Parameter(name=["--name", "-n"], help="Experiment name (auto-detected if not provided)")] = None,
+    dry_run: Annotated[bool, cyclopts.Parameter(help="Show what would be done without making changes")] = False,
+    force: Annotated[bool, cyclopts.Parameter(name=["--force", "-f"], help="Overwrite existing files")] = False,
+):
     """Initialize PTM pipeline in a project directory.
 
-    Discovers DEA folders, generates config.yaml, and copies pipeline files.
-
-    DIRECTORY defaults to current directory if not specified.
+    Discovers DEA folders from INPUT_DIR, writes pipeline files to OUTPUT_DIR.
     """
     from .init import init_project
 
+    if not input_dir.exists():
+        console.print(f"[red]Error:[/red] Input directory does not exist: {input_dir}")
+        raise SystemExit(1)
+
+    if not output_dir.exists():
+        console.print(f"[red]Error:[/red] Output directory does not exist: {output_dir}")
+        raise SystemExit(1)
+
     success = init_project(
-        project_dir=directory,
+        project_dir=output_dir,
+        input_dir=input_dir,
         name=name,
         dry_run=dry_run,
         force=force,
@@ -40,35 +50,43 @@ def init(directory: Path, name: str | None, dry_run: bool, force: bool):
     raise SystemExit(0 if success else 1)
 
 
-@main.command()
-@click.argument("directory", type=click.Path(exists=True, path_type=Path), default=".")
-@click.option("--quick", "-q", is_flag=True, help="Skip slow checks (R packages, uv tools)")
-def validate(directory: Path, quick: bool):
+@app.command
+def validate(
+    directory: Annotated[Path, cyclopts.Parameter(help="Project directory to validate")] = Path("."),
+    *,
+    quick: Annotated[bool, cyclopts.Parameter(name=["--quick", "-q"], help="Skip slow checks (R packages, uv tools)")] = False,
+):
     """Validate project setup for PTM pipeline.
 
     Checks that all required files, R packages, and tools are available.
-
-    DIRECTORY defaults to current directory if not specified.
     """
     from .validate import validate_project
+
+    if not directory.exists():
+        console.print(f"[red]Error:[/red] Directory does not exist: {directory}")
+        raise SystemExit(1)
 
     success = validate_project(project_dir=directory, quick=quick)
 
     raise SystemExit(0 if success else 1)
 
 
-@main.command()
-@click.argument("directory", type=click.Path(exists=True, path_type=Path), default=".")
-@click.option("--dry-run", is_flag=True, help="Show what would be updated")
-def update(directory: Path, dry_run: bool):
+@app.command
+def update(
+    directory: Annotated[Path, cyclopts.Parameter(help="Project directory to update")] = Path("."),
+    *,
+    dry_run: Annotated[bool, cyclopts.Parameter(help="Show what would be updated")] = False,
+):
     """Update pipeline files to latest version.
 
     Copies new versions of Snakefile, helpers.py, and src/ files
     while preserving config.yaml.
-
-    DIRECTORY defaults to current directory if not specified.
     """
     from .init import copy_template_files, get_template_dir
+
+    if not directory.exists():
+        console.print(f"[red]Error:[/red] Directory does not exist: {directory}")
+        raise SystemExit(1)
 
     directory = directory.resolve()
 
@@ -94,25 +112,29 @@ def update(directory: Path, dry_run: bool):
         console.print(f"  {action}: {f}")
 
     if dry_run:
-        console.print(f"\n[yellow]Dry run complete.[/yellow] No files were modified.")
+        console.print("\n[yellow]Dry run complete.[/yellow] No files were modified.")
     else:
         console.print(f"\n[green]Updated {len(copied)} files.[/green]")
         console.print("  ptm_config.yaml was preserved.")
 
 
-@main.command()
-@click.argument("directory", type=click.Path(exists=True, path_type=Path), default=".")
-@click.option("--dry-run", is_flag=True, help="Show what would be removed")
-@click.option("--force", "-f", is_flag=True, help="Skip confirmation prompt")
-def clean(directory: Path, dry_run: bool, force: bool):
+@app.command
+def clean(
+    directory: Annotated[Path, cyclopts.Parameter(help="Project directory to clean")] = Path("."),
+    *,
+    dry_run: Annotated[bool, cyclopts.Parameter(help="Show what would be removed")] = False,
+    force: Annotated[bool, cyclopts.Parameter(name=["--force", "-f"], help="Skip confirmation prompt")] = False,
+):
     """Remove pipeline files created by init.
 
     Removes ptm_config.yaml, Snakefile, helpers.py, Makefile, and src/.
     DEA folders and other project data are preserved.
-
-    DIRECTORY defaults to current directory if not specified.
     """
     from .clean import clean_project
+
+    if not directory.exists():
+        console.print(f"[red]Error:[/red] Directory does not exist: {directory}")
+        raise SystemExit(1)
 
     success = clean_project(
         project_dir=directory,
@@ -123,15 +145,20 @@ def clean(directory: Path, dry_run: bool, force: bool):
     raise SystemExit(0 if success else 1)
 
 
-@main.command()
-@click.argument("directory", type=click.Path(exists=True, path_type=Path), default=".")
-def info(directory: Path):
+@app.command
+def info(
+    directory: Annotated[Path, cyclopts.Parameter(help="Directory to scan for DEA folders")] = Path("."),
+):
     """Show information about discovered DEA folders.
 
     Useful for debugging auto-discovery before running init.
     """
     from .discover import find_all_dea_folders, find_annotation_file, parse_contrasts
     from rich.table import Table
+
+    if not directory.exists():
+        console.print(f"[red]Error:[/red] Directory does not exist: {directory}")
+        raise SystemExit(1)
 
     directory = directory.resolve()
 
@@ -185,6 +212,10 @@ def info(directory: Path):
             console.print(f"\n[bold]Contrasts from {annot.name}:[/bold]")
             for c in contrasts:
                 console.print(f"  - {c}")
+
+
+def main():
+    app()
 
 
 if __name__ == "__main__":
