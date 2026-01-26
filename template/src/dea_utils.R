@@ -38,33 +38,33 @@ get_dea_xlsx <- function(dea_dir) {
 }
 
 
-#' Get Parquet File from DEA Directory
+#' Get File from DEA Directory
 #'
-#' Finds the normalized parquet file within a DEA directory's Results_WU_* subfolder.
+#' Generic helper to find files within a DEA directory's Results_WU_* subfolder.
 #'
 #' @param dea_dir Path to DEA output directory
-#' @return Full path to the parquet file
-get_dea_parquet <- function(dea_dir) {
-  pattern <- file.path(dea_dir, "Results_WU_*", "lfqdata_normalized.parquet")
+#' @param filename Filename to find (e.g., "lfqdata_normalized.parquet")
+#' @param description Description for error message (e.g., "parquet file")
+#' @return Full path to the file
+get_dea_file <- function(dea_dir, filename, description = "file") {
+  pattern <- file.path(dea_dir, "Results_WU_*", filename)
   matches <- Sys.glob(pattern)
   if (length(matches) == 0) {
-    stop("No parquet file found in: ", dea_dir)
+    stop("No ", description, " found in: ", dea_dir)
   }
   return(matches[1])
 }
 
+#' Get Parquet File from DEA Directory
+#' @param dea_dir Path to DEA output directory
+#' @return Full path to the parquet file
+get_dea_parquet <- function(dea_dir) {
+  get_dea_file(dea_dir, "lfqdata_normalized.parquet", "parquet file")
+}
 
 #' Get YAML Config from DEA Directory
-#'
-#' Finds the lfqdata.yaml file within a DEA directory's Results_WU_* subfolder.
-#'
 #' @param dea_dir Path to DEA output directory
 #' @return Full path to the yaml file
 get_dea_yaml <- function(dea_dir) {
-  pattern <- file.path(dea_dir, "Results_WU_*", "lfqdata.yaml")
-  matches <- Sys.glob(pattern)
-  if (length(matches) == 0) {
-    stop("No yaml file found in: ", dea_dir)
-  }
-  return(matches[1])
+  get_dea_file(dea_dir, "lfqdata.yaml", "yaml file")
 }

@@ -36,30 +36,9 @@ message("Input file: ", xlsx_file)
 message("Output dir: ", output_dir)
 message("Analysis type: ", analysis_type)
 
-# Column configuration per analysis type
-col_config <- list(
-  DPA = list(
-    sheet = "combinedSiteProteinData",
-    diff_col = "diff.site",
-    flanking_col = "SequenceWindow"
-  ),
-  DPU = list(
-    sheet = "combinedStats",
-    diff_col = "diff_diff",
-    flanking_col = "SequenceWindow"
-  ),
-  CF = list(
-    sheet = "results",
-    diff_col = "diff_diff",
-    flanking_col = "SequenceWindow"
-  )
-)
-
-if (!analysis_type %in% names(col_config)) {
-  stop("Unknown analysis_type: ", analysis_type, ". Must be one of: DPA, DPU, CF")
-}
-
-config <- col_config[[analysis_type]]
+# Use shared column configuration
+source("src/feature_preparation.R")
+config <- get_analysis_config(analysis_type)
 
 # Read Excel file
 message("Reading sheet: ", config$sheet)

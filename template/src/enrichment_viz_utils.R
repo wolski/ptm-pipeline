@@ -7,6 +7,28 @@ library(ggplot2)
 library(dplyr)
 library(forcats)
 
+#' Prepare enrichment data with common computed columns
+#'
+#' Adds neg_log_fdr, direction, and significant columns to enrichment results.
+#' This is a shared helper used by plot functions and analyses.
+#'
+#' @param data Data frame with NES and FDR columns
+#' @param fdr_col Name of FDR column (default: "FDR")
+#' @param fdr_threshold FDR threshold for significance (default: 0.1)
+#' @return Data frame with added neg_log_fdr, direction, significant columns
+prepare_enrichment_data <- function(data, fdr_col = "FDR", fdr_threshold = 0.1) {
+  data |>
+    dplyr::mutate(
+      neg_log_fdr = -log10(pmax(.data[[fdr_col]], 1e-10)),
+      direction = dplyr::case_when(
+        NES > 0 ~ "Up",
+        NES < 0 ~ "Down",
+        TRUE ~ "NS"
+      ),
+      significant = .data[[fdr_col]] < fdr_threshold
+    )
+}
+
 #' Create enrichment dotplot for top items by FDR
 #'
 #' @param data Data frame with columns: item (kinase/pathway), NES, p.adjust/FDR, contrast
@@ -18,12 +40,8 @@ library(forcats)
 #' @return ggplot object
 plot_enrichment_dotplot <- function(data, item_col = "kinase", fdr_col = "FDR",
                                      n_top = 30, title = NULL, subtitle = "Top 30 by FDR") {
-  # Prepare data
-  plot_data <- data |>
-    mutate(
-      neg_log_fdr = -log10(pmax(.data[[fdr_col]], 1e-10)),
-      significant = .data[[fdr_col]] < 0.1
-    ) |>
+  # Prepare data using shared helper
+  plot_data <- prepare_enrichment_data(data, fdr_col, 0.1) |>
     arrange(.data[[fdr_col]]) |>
     head(n_top) |>
     mutate(item = fct_reorder(.data[[item_col]], NES))
@@ -59,17 +77,8 @@ plot_enrichment_dotplot <- function(data, item_col = "kinase", fdr_col = "FDR",
 plot_enrichment_volcano <- function(data, item_col = "kinase", fdr_col = "FDR",
                                      fdr_threshold = 0.1, label_fdr_threshold = 0.05,
                                      n_labels = 5, title = NULL, subtitle = NULL) {
-  # Prepare data
-  volcano_data <- data |>
-    mutate(
-      neg_log_fdr = -log10(pmax(.data[[fdr_col]], 1e-10)),
-      direction = case_when(
-        NES > 0 ~ "Up",
-        NES < 0 ~ "Down",
-        TRUE ~ "NS"
-      ),
-      significant = .data[[fdr_col]] < fdr_threshold
-    )
+  # Prepare data using shared helper
+  volcano_data <- prepare_enrichment_data(data, fdr_col, fdr_threshold)
 
   # Default subtitle
   if (is.null(subtitle)) {

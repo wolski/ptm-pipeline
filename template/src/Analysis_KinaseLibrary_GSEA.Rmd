@@ -62,14 +62,9 @@ source("src/enrichment_viz_utils.R")
 ```
 
 ```{r load-data}
-# Column configuration per analysis type
-col_config <- list(
-  DPA = list(sheet = "combinedSiteProteinData", stat_col = "statistic.site", diff_col = "diff.site"),
-  DPU = list(sheet = "combinedStats", stat_col = "tstatistic_I", diff_col = "diff_diff"),
-  CF  = list(sheet = "results", stat_col = "statistic", diff_col = "diff_diff")
-)
-
-config <- col_config[[params$analysis_type]]
+# Use shared column configuration
+source("src/feature_preparation.R")
+config <- get_analysis_config(params$analysis_type)
 
 # Load differential analysis data
 data <- read_xlsx(params$xlsx_file, sheet = config$sheet)

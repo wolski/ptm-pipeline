@@ -42,6 +42,51 @@ find_files <- function(base_dir, pattern, subdir = NULL) {
   list.files(dir_path, pattern = pattern, full.names = FALSE)
 }
 
+# Generate analysis section table rows
+# Returns markdown table rows for standard analyses (N-to-C, Seqlogo, PTM-SEA, KinaseLib)
+generate_analysis_rows <- function(analysis_dir, relative_dir, analysis_type, ntoc_pdf_name) {
+  rows <- character()
+
+  # N-to-C
+  ntoc_html <- link_if_exists(file.path(analysis_dir, "Analysis_n_to_c.html"),
+                              file.path(relative_dir, "Analysis_n_to_c.html"))
+  ntoc_pdf <- link_if_exists(file.path(analysis_dir, ntoc_pdf_name),
+                             file.path(relative_dir, ntoc_pdf_name), "PDF")
+  rows <- c(rows, sprintf("| N-to-C Plots | %s | %s |", ntoc_html, ntoc_pdf))
+
+  # Seqlogo
+  seqlogo_html <- link_if_exists(file.path(analysis_dir, "Analysis_seqlogo.html"),
+                                 file.path(relative_dir, "Analysis_seqlogo.html"))
+  rows <- c(rows, sprintf("| Sequence Logos | %s | |", seqlogo_html))
+
+  # PTM-SEA
+  ptmsea_html <- link_if_exists(file.path(analysis_dir, paste0("PTMSEA/PTMSEA_", analysis_type, ".html")),
+                                file.path(relative_dir, paste0("PTMSEA/PTMSEA_", analysis_type, ".html")))
+  ptmsea_xlsx <- link_if_exists(file.path(analysis_dir, paste0("PTMSEA/PTMSEA_", analysis_type, "_results.xlsx")),
+                                file.path(relative_dir, paste0("PTMSEA/PTMSEA_", analysis_type, "_results.xlsx")), "xlsx")
+  ptmsea_pdf <- link_if_exists(file.path(analysis_dir, paste0("PTMSEA/GSEA_plots_", analysis_type, ".pdf")),
+                               file.path(relative_dir, paste0("PTMSEA/GSEA_plots_", analysis_type, ".pdf")), "PDF")
+  rows <- c(rows, sprintf("| PTM-SEA | %s | %s %s |", ptmsea_html, ptmsea_xlsx, ptmsea_pdf))
+
+  # KinaseLib GSEA
+  kl_html <- link_if_exists(file.path(analysis_dir, paste0("KinaseLib/Analysis_KinaseLib_", analysis_type, ".html")),
+                            file.path(relative_dir, paste0("KinaseLib/Analysis_KinaseLib_", analysis_type, ".html")))
+  kl_xlsx <- link_if_exists(file.path(analysis_dir, paste0("KinaseLib/KinaseLib_GSEA_", analysis_type, ".xlsx")),
+                            file.path(relative_dir, paste0("KinaseLib/KinaseLib_GSEA_", analysis_type, ".xlsx")), "xlsx")
+  kl_pdf <- link_if_exists(file.path(analysis_dir, paste0("KinaseLib/GSEA_plots_", analysis_type, ".pdf")),
+                           file.path(relative_dir, paste0("KinaseLib/GSEA_plots_", analysis_type, ".pdf")), "PDF")
+  rows <- c(rows, sprintf("| KinaseLib GSEA | %s | %s %s |", kl_html, kl_xlsx, kl_pdf))
+
+  # KinaseLib MEA
+  mea_html <- link_if_exists(file.path(analysis_dir, "KinaseLib/Analysis_MEA.html"),
+                             file.path(relative_dir, "KinaseLib/Analysis_MEA.html"))
+  mea_xlsx <- link_if_exists(file.path(analysis_dir, paste0("KinaseLib/MEA_", analysis_type, "_results.xlsx")),
+                             file.path(relative_dir, paste0("KinaseLib/MEA_", analysis_type, "_results.xlsx")), "xlsx")
+  rows <- c(rows, sprintf("| KinaseLib MEA | %s | %s |", mea_html, mea_xlsx))
+
+  return(rows)
+}
+
 # Analysis directories
 dpa_dir <- file.path(params$folder, "PTM_DPA")
 dpu_dir <- file.path(params$folder, "PTM_DPU")
@@ -69,39 +114,9 @@ Raw phosphosite intensity changes. Reflects both true phosphorylation changes AN
 cat("| Analysis | Report | Data / PDF |\n")
 cat("|----------|--------|------------|\n")
 
-# N-to-C
-ntoc_html <- link_if_exists(file.path(dpa_dir, "Analysis_n_to_c.html"), "PTM_DPA/Analysis_n_to_c.html")
-ntoc_pdf <- link_if_exists(file.path(dpa_dir, "Site_differential_Expression_MultiContrast.pdf"),
-                           "PTM_DPA/Site_differential_Expression_MultiContrast.pdf", "PDF")
-cat(sprintf("| N-to-C Plots | %s | %s |\n", ntoc_html, ntoc_pdf))
-
-# Seqlogo
-seqlogo_html <- link_if_exists(file.path(dpa_dir, "Analysis_seqlogo.html"), "PTM_DPA/Analysis_seqlogo.html")
-cat(sprintf("| Sequence Logos | %s | |\n", seqlogo_html))
-
-# PTM-SEA
-ptmsea_html <- link_if_exists(file.path(dpa_dir, "PTMSEA/PTMSEA_DPA.html"), "PTM_DPA/PTMSEA/PTMSEA_DPA.html")
-ptmsea_xlsx <- link_if_exists(file.path(dpa_dir, "PTMSEA/PTMSEA_DPA_results.xlsx"),
-                              "PTM_DPA/PTMSEA/PTMSEA_DPA_results.xlsx", "xlsx")
-ptmsea_pdf <- link_if_exists(file.path(dpa_dir, "PTMSEA/GSEA_plots_DPA.pdf"),
-                             "PTM_DPA/PTMSEA/GSEA_plots_DPA.pdf", "PDF")
-cat(sprintf("| PTM-SEA | %s | %s %s |\n", ptmsea_html, ptmsea_xlsx, ptmsea_pdf))
-
-# KinaseLib GSEA
-kl_html <- link_if_exists(file.path(dpa_dir, "KinaseLib/Analysis_KinaseLib_DPA.html"),
-                          "PTM_DPA/KinaseLib/Analysis_KinaseLib_DPA.html")
-kl_xlsx <- link_if_exists(file.path(dpa_dir, "KinaseLib/KinaseLib_GSEA_DPA.xlsx"),
-                          "PTM_DPA/KinaseLib/KinaseLib_GSEA_DPA.xlsx", "xlsx")
-kl_pdf <- link_if_exists(file.path(dpa_dir, "KinaseLib/GSEA_plots_DPA.pdf"),
-                         "PTM_DPA/KinaseLib/GSEA_plots_DPA.pdf", "PDF")
-cat(sprintf("| KinaseLib GSEA | %s | %s %s |\n", kl_html, kl_xlsx, kl_pdf))
-
-# KinaseLib MEA
-mea_html <- link_if_exists(file.path(dpa_dir, "KinaseLib/Analysis_MEA.html"),
-                           "PTM_DPA/KinaseLib/Analysis_MEA.html")
-mea_xlsx <- link_if_exists(file.path(dpa_dir, "KinaseLib/MEA_DPA_results.xlsx"),
-                           "PTM_DPA/KinaseLib/MEA_DPA_results.xlsx", "xlsx")
-cat(sprintf("| KinaseLib MEA | %s | %s |\n", mea_html, mea_xlsx))
+# Generate standard rows using helper
+rows <- generate_analysis_rows(dpa_dir, "PTM_DPA", "DPA", "Site_differential_Expression_MultiContrast.pdf")
+cat(paste0(rows, "\n", collapse = ""))
 
 # Results xlsx
 results_xlsx <- link_if_exists(file.path(dpa_dir, "Result_DPA.xlsx"), "PTM_DPA/Result_DPA.xlsx", "xlsx")
@@ -116,50 +131,19 @@ Phosphorylation stoichiometry changes, normalized by protein abundance. Reveals 
 cat("| Analysis | Report | Data / PDF |\n")
 cat("|----------|--------|------------|\n")
 
-# DPU Integration Overview + Results
+# DPU-specific rows first
 dpu_overview <- link_if_exists(file.path(dpu_dir, "Result_DPU.html"), "PTM_DPU/Result_DPU.html")
 dpu_xlsx <- link_if_exists(file.path(dpu_dir, "Result_DPU.xlsx"), "PTM_DPU/Result_DPU.xlsx", "xlsx")
 cat(sprintf("| DPU Integration | %s | %s |\n", dpu_overview, dpu_xlsx))
 
-# Main analysis (Analysis_DPA_DPU shows integration - belongs in DPU)
 main_html <- link_if_exists(file.path(dpa_dir, "Analysis_DPA_DPU.html"), "PTM_DPA/Analysis_DPA_DPU.html")
 if (nchar(main_html) > 0) {
   cat(sprintf("| DPA/DPU Analysis | %s | |\n", main_html))
 }
 
-# N-to-C
-ntoc_html <- link_if_exists(file.path(dpu_dir, "Analysis_n_to_c.html"), "PTM_DPU/Analysis_n_to_c.html")
-ntoc_pdf <- link_if_exists(file.path(dpu_dir, "Site_differential_UsageChange_MultiContrast.pdf"),
-                           "PTM_DPU/Site_differential_UsageChange_MultiContrast.pdf", "PDF")
-cat(sprintf("| N-to-C Plots | %s | %s |\n", ntoc_html, ntoc_pdf))
-
-# Seqlogo
-seqlogo_html <- link_if_exists(file.path(dpu_dir, "Analysis_seqlogo.html"), "PTM_DPU/Analysis_seqlogo.html")
-cat(sprintf("| Sequence Logos | %s | |\n", seqlogo_html))
-
-# PTM-SEA
-ptmsea_html <- link_if_exists(file.path(dpu_dir, "PTMSEA/PTMSEA_DPU.html"), "PTM_DPU/PTMSEA/PTMSEA_DPU.html")
-ptmsea_xlsx <- link_if_exists(file.path(dpu_dir, "PTMSEA/PTMSEA_DPU_results.xlsx"),
-                              "PTM_DPU/PTMSEA/PTMSEA_DPU_results.xlsx", "xlsx")
-ptmsea_pdf <- link_if_exists(file.path(dpu_dir, "PTMSEA/GSEA_plots_DPU.pdf"),
-                             "PTM_DPU/PTMSEA/GSEA_plots_DPU.pdf", "PDF")
-cat(sprintf("| PTM-SEA | %s | %s %s |\n", ptmsea_html, ptmsea_xlsx, ptmsea_pdf))
-
-# KinaseLib GSEA
-kl_html <- link_if_exists(file.path(dpu_dir, "KinaseLib/Analysis_KinaseLib_DPU.html"),
-                          "PTM_DPU/KinaseLib/Analysis_KinaseLib_DPU.html")
-kl_xlsx <- link_if_exists(file.path(dpu_dir, "KinaseLib/KinaseLib_GSEA_DPU.xlsx"),
-                          "PTM_DPU/KinaseLib/KinaseLib_GSEA_DPU.xlsx", "xlsx")
-kl_pdf <- link_if_exists(file.path(dpu_dir, "KinaseLib/GSEA_plots_DPU.pdf"),
-                         "PTM_DPU/KinaseLib/GSEA_plots_DPU.pdf", "PDF")
-cat(sprintf("| KinaseLib GSEA | %s | %s %s |\n", kl_html, kl_xlsx, kl_pdf))
-
-# KinaseLib MEA
-mea_html <- link_if_exists(file.path(dpu_dir, "KinaseLib/Analysis_MEA.html"),
-                           "PTM_DPU/KinaseLib/Analysis_MEA.html")
-mea_xlsx <- link_if_exists(file.path(dpu_dir, "KinaseLib/MEA_DPU_results.xlsx"),
-                           "PTM_DPU/KinaseLib/MEA_DPU_results.xlsx", "xlsx")
-cat(sprintf("| KinaseLib MEA | %s | %s |\n", mea_html, mea_xlsx))
+# Generate standard rows using helper
+rows <- generate_analysis_rows(dpu_dir, "PTM_DPU", "DPU", "Site_differential_UsageChange_MultiContrast.pdf")
+cat(paste0(rows, "\n", collapse = ""))
 ```
 
 ## CorrectFirst (CF)
@@ -170,46 +154,16 @@ Alternative protein-correction: subtracts protein abundance before statistical t
 cat("| Analysis | Report | Data / PDF |\n")
 cat("|----------|--------|------------|\n")
 
-# Main analysis + Results
+# CF-specific row first
 main_html <- link_if_exists(file.path(cf_dir, "Analysis_CorrectFirst_DEA.html"),
                             "PTM_CF_DPU/Analysis_CorrectFirst_DEA.html")
 main_xlsx <- link_if_exists(file.path(cf_dir, "CorrectFirst_PTM_usage_results.xlsx"),
                             "PTM_CF_DPU/CorrectFirst_PTM_usage_results.xlsx", "xlsx")
 cat(sprintf("| Main Analysis | %s | %s |\n", main_html, main_xlsx))
 
-# N-to-C
-ntoc_html <- link_if_exists(file.path(cf_dir, "Analysis_n_to_c.html"), "PTM_CF_DPU/Analysis_n_to_c.html")
-ntoc_pdf <- link_if_exists(file.path(cf_dir, "Site_differential_CorrectFirst_MultiContrast.pdf"),
-                           "PTM_CF_DPU/Site_differential_CorrectFirst_MultiContrast.pdf", "PDF")
-cat(sprintf("| N-to-C Plots | %s | %s |\n", ntoc_html, ntoc_pdf))
-
-# Seqlogo
-seqlogo_html <- link_if_exists(file.path(cf_dir, "Analysis_seqlogo.html"), "PTM_CF_DPU/Analysis_seqlogo.html")
-cat(sprintf("| Sequence Logos | %s | |\n", seqlogo_html))
-
-# PTM-SEA
-ptmsea_html <- link_if_exists(file.path(cf_dir, "PTMSEA/PTMSEA_CF.html"), "PTM_CF_DPU/PTMSEA/PTMSEA_CF.html")
-ptmsea_xlsx <- link_if_exists(file.path(cf_dir, "PTMSEA/PTMSEA_CF_results.xlsx"),
-                              "PTM_CF_DPU/PTMSEA/PTMSEA_CF_results.xlsx", "xlsx")
-ptmsea_pdf <- link_if_exists(file.path(cf_dir, "PTMSEA/GSEA_plots_CF.pdf"),
-                             "PTM_CF_DPU/PTMSEA/GSEA_plots_CF.pdf", "PDF")
-cat(sprintf("| PTM-SEA | %s | %s %s |\n", ptmsea_html, ptmsea_xlsx, ptmsea_pdf))
-
-# KinaseLib GSEA
-kl_html <- link_if_exists(file.path(cf_dir, "KinaseLib/Analysis_KinaseLib_CF.html"),
-                          "PTM_CF_DPU/KinaseLib/Analysis_KinaseLib_CF.html")
-kl_xlsx <- link_if_exists(file.path(cf_dir, "KinaseLib/KinaseLib_GSEA_CF.xlsx"),
-                          "PTM_CF_DPU/KinaseLib/KinaseLib_GSEA_CF.xlsx", "xlsx")
-kl_pdf <- link_if_exists(file.path(cf_dir, "KinaseLib/GSEA_plots_CF.pdf"),
-                         "PTM_CF_DPU/KinaseLib/GSEA_plots_CF.pdf", "PDF")
-cat(sprintf("| KinaseLib GSEA | %s | %s %s |\n", kl_html, kl_xlsx, kl_pdf))
-
-# KinaseLib MEA
-mea_html <- link_if_exists(file.path(cf_dir, "KinaseLib/Analysis_MEA.html"),
-                           "PTM_CF_DPU/KinaseLib/Analysis_MEA.html")
-mea_xlsx <- link_if_exists(file.path(cf_dir, "KinaseLib/MEA_CF_results.xlsx"),
-                           "PTM_CF_DPU/KinaseLib/MEA_CF_results.xlsx", "xlsx")
-cat(sprintf("| KinaseLib MEA | %s | %s |\n", mea_html, mea_xlsx))
+# Generate standard rows using helper
+rows <- generate_analysis_rows(cf_dir, "PTM_CF_DPU", "CF", "Site_differential_CorrectFirst_MultiContrast.pdf")
+cat(paste0(rows, "\n", collapse = ""))
 ```
 
 ---

@@ -15,46 +15,65 @@ suppressPackageStartupMessages({
   library(arrow)
 })
 
-#' Standardize DPA results
-#' DPA has both site and protein columns
-standardize_dpa <- function(data) {
-  data |>
-    dplyr::select(
-      protein_Id, site, contrast, posInProtein, modAA, SequenceWindow,
-      gene_name = gene_name.site, protein_length,
-      diff.site, FDR.site, statistic.site,
-      diff.protein, FDR.protein, statistic.protein
+#' Standardize PTM results based on analysis type
+#'
+#' Config-driven standardization that handles column renaming for DPA, DPU, and CF.
+#'
+#' @param data Data frame with PTM results
+#' @param analysis_type One of "dpa", "dpu", or "cf"
+#' @param reference_data Optional reference data for CF (to get gene_name, protein_length)
+#' @return Standardized data frame
+standardize_results <- function(data, analysis_type, reference_data = NULL) {
+  analysis_type <- tolower(analysis_type)
+
+  # Column configuration for each analysis type
+  configs <- list(
+    dpa = list(
+      rename = c(gene_name = "gene_name.site"),
+      direct_cols = c("protein_Id", "site", "contrast", "posInProtein", "modAA",
+                      "SequenceWindow", "protein_length", "diff.site", "FDR.site",
+                      "statistic.site", "diff.protein", "FDR.protein", "statistic.protein")
+    ),
+    dpu = list(
+      rename = c(gene_name = "gene_name.site", diff.site = "diff_diff",
+                 FDR.site = "FDR_I", statistic.site = "tstatistic_I"),
+      direct_cols = c("protein_Id", "site", "contrast", "posInProtein", "modAA",
+                      "SequenceWindow", "protein_length")
+    ),
+    cf = list(
+      rename = c(diff.site = "diff_diff", FDR.site = "FDR_I", statistic.site = "statistic"),
+      direct_cols = c("protein_Id", "site", "contrast", "posInProtein", "modAA", "SequenceWindow"),
+      needs_join = TRUE
     )
+  )
+
+  if (!analysis_type %in% names(configs)) {
+    stop("Unknown analysis_type: ", analysis_type, ". Must be one of: dpa, dpu, cf")
+  }
+
+  config <- configs[[analysis_type]]
+
+  # Handle CF's need to join with reference data
+  if (isTRUE(config$needs_join) && !is.null(reference_data)) {
+    site_info <- reference_data |>
+      dplyr::select(site, gene_name = gene_name.site, protein_length) |>
+      dplyr::distinct()
+    data <- data |> dplyr::left_join(site_info, by = "site")
+  }
+
+  # Apply renaming
+  result <- data |> dplyr::rename(dplyr::any_of(config$rename))
+
+  # Select final columns
+  final_cols <- c(config$direct_cols, names(config$rename))
+  final_cols <- unique(final_cols[final_cols %in% names(result)])
+  result |> dplyr::select(dplyr::all_of(final_cols))
 }
 
-#' Standardize DPU results
-#' DPU: rename diff_diff -> diff.site, FDR_I -> FDR.site, tstatistic_I -> statistic.site
-standardize_dpu <- function(data) {
-  data |>
-    dplyr::select(
-      protein_Id, site, contrast, posInProtein, modAA, SequenceWindow,
-      gene_name = gene_name.site, protein_length,
-      diff.site = diff_diff, FDR.site = FDR_I, statistic.site = tstatistic_I
-    )
-}
-
-#' Standardize CF results
-#' CF: rename diff_diff -> diff.site, FDR_I -> FDR.site
-#' Note: CF doesn't have gene_name or protein_length directly
-standardize_cf <- function(cf_data, dpa_data) {
-  # Get gene_name and protein_length from DPA data
-  site_info <- dpa_data |>
-    dplyr::select(site, gene_name = gene_name.site, protein_length) |>
-    dplyr::distinct()
-
-  cf_data |>
-    dplyr::left_join(site_info, by = "site") |>
-    dplyr::select(
-      protein_Id, site, contrast, posInProtein, modAA, SequenceWindow,
-      gene_name, protein_length,
-      diff.site = diff_diff, FDR.site = FDR_I, statistic.site = statistic
-    )
-}
+# Backward compatibility wrappers
+standardize_dpa <- function(data) standardize_results(data, "dpa")
+standardize_dpu <- function(data) standardize_results(data, "dpu")
+standardize_cf <- function(cf_data, dpa_data) standardize_results(cf_data, "cf", dpa_data)
 
 #' Combine all PTM results into standardized format
 #'

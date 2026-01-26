@@ -108,19 +108,22 @@ get_analysis_config <- function(analysis_type) {
       sheet = "combinedSiteProteinData",
       stat_col = "statistic.site",
       diff_col = "diff.site",
-      fdr_col = "FDR.site"
+      fdr_col = "FDR.site",
+      flanking_col = "SequenceWindow"
     ),
     dpu = list(
       sheet = "combinedStats",
       stat_col = "tstatistic_I",
       diff_col = "diff_diff",
-      fdr_col = "FDR_I"
+      fdr_col = "FDR_I",
+      flanking_col = "SequenceWindow"
     ),
     cf = list(
       sheet = "results",
       stat_col = "statistic",
       diff_col = "diff_diff",
-      fdr_col = "FDR"
+      fdr_col = "FDR",
+      flanking_col = "SequenceWindow"
     )
   )
 

@@ -76,17 +76,8 @@ cat("Contrasts:", paste(unique(mea_results$contrast), collapse = ", "), "\n")
 ```
 
 ```{r cleanResults}
-# Clean and prepare results
-mea_clean <- mea_results |>
-  mutate(
-    neg_log_fdr = -log10(pmax(FDR, 1e-10)),
-    direction = case_when(
-      NES > 0 ~ "Up",
-      NES < 0 ~ "Down",
-      TRUE ~ "NS"
-    ),
-    significant = FDR < 0.1
-  )
+# Clean and prepare results using shared helper
+mea_clean <- prepare_enrichment_data(mea_results, "FDR", 0.1)
 
 # Summary
 summary_df <- mea_clean |>
