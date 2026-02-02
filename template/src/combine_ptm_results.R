@@ -42,7 +42,8 @@ standardize_results <- function(data, analysis_type, reference_data = NULL) {
     ),
     cf = list(
       rename = c(diff.site = "diff_diff", FDR.site = "FDR_I", statistic.site = "statistic"),
-      direct_cols = c("protein_Id", "site", "contrast", "posInProtein", "modAA", "SequenceWindow"),
+      direct_cols = c("protein_Id", "site", "contrast", "posInProtein", "modAA", "SequenceWindow",
+                      "gene_name", "protein_length"),
       needs_join = TRUE
     )
   )
