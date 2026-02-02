@@ -61,13 +61,16 @@ standardize_results <- function(data, analysis_type, reference_data = NULL) {
     data <- data |> dplyr::left_join(site_info, by = "site")
   }
 
-  # Apply renaming
-  result <- data |> dplyr::rename(dplyr::any_of(config$rename))
+  # Build select specification: direct cols + renamed cols
+  # Use select() with renaming to avoid duplicate column issues
+  select_spec <- c(
+    setNames(config$direct_cols, config$direct_cols),  # direct: col = col
+    config$rename                                       # renamed: new_name = old_name
+  )
 
-  # Select final columns
-  final_cols <- c(config$direct_cols, names(config$rename))
-  final_cols <- unique(final_cols[final_cols %in% names(result)])
-  result |> dplyr::select(dplyr::all_of(final_cols))
+  # Only select columns that exist in data
+  existing <- select_spec[select_spec %in% names(data)]
+  data |> dplyr::select(!!!existing)
 }
 
 # Backward compatibility wrappers
