@@ -23,7 +23,8 @@ validate: ## Validate project setup
 	ptm-pipeline validate .
 
 clean: ## Remove all output files (keeps config)
-	rm -rf PTM_* .snakemake *.zip
+	snakemake -s $(SNAKEFILE) --configfile $(CONFIG) --delete-all-output
+	rm -rf .snakemake *.zip
 
 clean-all: ## Clean slate - remove everything for fresh init
 	rm -rf PTM_* .snakemake *.zip
