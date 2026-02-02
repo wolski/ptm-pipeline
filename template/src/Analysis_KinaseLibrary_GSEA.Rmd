@@ -152,24 +152,13 @@ knitr::kable(kinase_stats, caption = "Kinase Set Size Distribution")
 ## Prepare Ranked Lists
 
 ```{r prepare-ranks}
-# Get statistic column name
-stat_col <- config$stat_col
-
-contrasts <- unique(data$contrast)
-
-# Prepare ranked lists using t-statistic
-# Names must match sequences in term2gene
-ranks <- contrasts |>
-  set_names() |>
-  map(function(ct) {
-    data |>
-      filter(contrast == ct) |>
-      mutate(seq = toupper(trimws(SequenceWindow))) |>
-      filter(!is.na(.data[[stat_col]])) |>
-      distinct(seq, .keep_all = TRUE) |>
-      arrange(desc(.data[[stat_col]])) |>
-      (\(df) setNames(df[[stat_col]], df$seq))()
-  })
+# Prepare ranked lists using prophosqua function
+ranks <- prepare_gsea_ranks(
+  data,
+  stat_col = config$stat_col,
+  seq_col = "SequenceWindow",
+  contrast_col = "contrast"
+)
 
 ranks_info <- tibble(
   Contrast = names(ranks),
