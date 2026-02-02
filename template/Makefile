@@ -24,10 +24,8 @@ validate: ## Validate project setup
 
 clean: ## Remove all output files (keeps config)
 	snakemake -s $(SNAKEFILE) --configfile $(CONFIG) --delete-all-output
-	rm -rf .snakemake *.zip
 
-clean-all: ## Clean slate - remove everything for fresh init
-	rm -rf PTM_* .snakemake *.zip
+clean-all: clean ## Clean slate - remove everything for fresh init
 	rm -rf src Snakefile helpers.py ptm_config.yaml
 
 # Pipeline management
