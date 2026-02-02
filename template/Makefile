@@ -7,8 +7,9 @@ SNAKEFILE := Snakefile
 CORES := 1
 
 # PTM-pipeline source: git URL or local path
-# Override with: make install PTM_PIPELINE_SRC=/path/to/ptm-pipeline
-PTM_PIPELINE_SRC := git+https://github.com/wolski/ptm-pipeline
+# Override with: make install
+PTM_PIPELINE_SRC := /Users/wolski/projects/ptm-pipeline/
+#PTM_PIPELINE_SRC := git+https://github.com/wolski/ptm-pipeline
 
 # Pipeline targets
 .PHONY: all dry-run clean help install upgrade validate
@@ -30,7 +31,7 @@ clean-all: clean ## Clean slate - remove everything for fresh init
 
 # Pipeline management
 init: ## (Re)initialize pipeline in this directory
-	ptm-pipeline init .
+	ptm-pipeline init . --force
 install: ## Install ptm-pipeline tool
 	uv tool install $(PTM_PIPELINE_SRC)
 
