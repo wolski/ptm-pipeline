@@ -21,7 +21,13 @@ validate: ## Validate project setup
 clean: ## Remove all output files (keeps config)
 	rm -rf PTM_* .snakemake *.zip
 
+clean-all: ## Clean slate - remove everything for fresh init
+	rm -rf PTM_* .snakemake *.zip
+	rm -rf src Snakefile helpers.py ptm_config.yaml Makefile
+
 # Pipeline management
+init: ## (Re)initialize pipeline in this directory
+	ptm-pipeline init .
 install: ## Install ptm-pipeline tool
 	uv tool install git+https://github.com/wolski/ptm-pipeline
 
