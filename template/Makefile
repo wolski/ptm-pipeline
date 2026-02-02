@@ -6,6 +6,10 @@ CONFIG := ptm_config.yaml
 SNAKEFILE := Snakefile
 CORES := 1
 
+# PTM-pipeline source: git URL or local path
+# Override with: make install PTM_PIPELINE_SRC=/path/to/ptm-pipeline
+PTM_PIPELINE_SRC := git+https://github.com/wolski/ptm-pipeline
+
 # Pipeline targets
 .PHONY: all dry-run clean help install upgrade validate
 
@@ -23,16 +27,16 @@ clean: ## Remove all output files (keeps config)
 
 clean-all: ## Clean slate - remove everything for fresh init
 	rm -rf PTM_* .snakemake *.zip
-	rm -rf src Snakefile helpers.py ptm_config.yaml Makefile
+	rm -rf src Snakefile helpers.py ptm_config.yaml
 
 # Pipeline management
 init: ## (Re)initialize pipeline in this directory
 	ptm-pipeline init .
 install: ## Install ptm-pipeline tool
-	uv tool install git+https://github.com/wolski/ptm-pipeline
+	uv tool install $(PTM_PIPELINE_SRC)
 
-upgrade: ## Upgrade ptm-pipeline to latest version (reinstall from git)
-	uv tool install --reinstall git+https://github.com/wolski/ptm-pipeline
+upgrade: ## Upgrade ptm-pipeline to latest version (reinstall)
+	uv tool install --reinstall $(PTM_PIPELINE_SRC)
 
 update: ## Update pipeline files (keeps config)
 	ptm-pipeline update .
