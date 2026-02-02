@@ -8,6 +8,29 @@
 
 ---
 
+## Progress Summary (Updated 2026-02-02)
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| 1 | ✅ DONE | Visualization functions moved to prophosqua |
+| 2 | ✅ DONE | `prepare_gsea_ranks()` added to prophosqua |
+| 3 | ✅ DONE | `filter_significant_sites()` added to prophosqua |
+| 4 | ⏳ TODO | Parametrize prophosqua vignettes with params headers |
+| 5 | ⏳ PARTIAL | PTM-Pipeline templates updated (Makefile, cleanup done) |
+| 6 | ⏳ TODO | Add comprehensive tests |
+
+**Lines removed from ptm-pipeline:** ~361 lines of duplicated code
+
+**Files changed:**
+- `template/src/enrichment_viz_utils.R` - DELETED (286 lines → prophosqua)
+- `template/src/feature_preparation.R` - Trimmed (removed filter/summarize functions)
+- `template/src/Analysis_KinaseLibrary_GSEA.Rmd` - Uses prophosqua::prepare_gsea_ranks()
+- `template/src/Analysis_MEA.Rmd` - Uses prophosqua visualization functions
+- `template/src/Analysis_PTMSEA.Rmd` - Uses prophosqua visualization functions
+- `template/Makefile` - Added clean-all and init targets
+
+---
+
 ## Current State Analysis
 
 ### Prophosqua Package Structure (v0.2.0)
@@ -465,26 +488,27 @@ snakemake -s Snakefile --configfile ptm_config.yaml -j1 all
 ## Files Summary
 
 ### Files to ADD to prophosqua:
-- [ ] `R/enrichment_visualization.R` (new)
-- [ ] `R/gsea_utils.R` (new, or add to ptmsea.R)
-- [ ] `R/feature_preparation.R` (new)
+- [x] `R/enrichment_visualization.R` (new) ✅
+- [x] `R/gsea_utils.R` (added to ptmsea.R) ✅
+- [x] `R/feature_preparation.R` (new) ✅
 - [ ] `tests/testthat/test-enrichment_visualization.R`
 - [ ] `tests/testthat/test-gsea_utils.R`
 - [ ] `tests/testthat/test-feature_preparation.R`
 
 ### Files to MODIFY in prophosqua:
-- [ ] `DESCRIPTION` - Add enrichplot to Imports
-- [ ] `NAMESPACE` - Add exports (via roxygen)
+- [x] `DESCRIPTION` - Add enrichplot to Imports ✅
+- [x] `NAMESPACE` - Add exports (via roxygen) ✅
 - [ ] `vignettes/Analysis_PTMSEA.Rmd` - Add params header
 - [ ] `vignettes/Analysis_KinaseLibrary.Rmd` - Add params header
 - [ ] `vignettes/Vis_MEA.Rmd` - Add params header
 
 ### Files to MODIFY in ptm-pipeline (after prophosqua update):
-- [ ] `template/src/enrichment_viz_utils.R` - Remove or thin wrapper
-- [ ] `template/src/feature_preparation.R` - Remove or thin wrapper
-- [ ] `template/src/Analysis_PTMSEA.Rmd` - Use prophosqua functions
-- [ ] `template/src/Analysis_KinaseLibrary_GSEA.Rmd` - Use prophosqua functions
-- [ ] `template/src/Analysis_MEA.Rmd` - Use prophosqua functions
+- [x] `template/src/enrichment_viz_utils.R` - DELETED ✅
+- [x] `template/src/feature_preparation.R` - Trimmed (kept ptm-pipeline-specific) ✅
+- [x] `template/src/Analysis_PTMSEA.Rmd` - Uses prophosqua functions ✅
+- [x] `template/src/Analysis_KinaseLibrary_GSEA.Rmd` - Uses prophosqua functions ✅
+- [x] `template/src/Analysis_MEA.Rmd` - Uses prophosqua functions ✅
+- [x] `template/Makefile` - Added clean-all and init targets ✅
 
 ---
 
