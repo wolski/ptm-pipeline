@@ -55,14 +55,7 @@ library(purrr)
 library(readxl)
 library(writexl)
 library(ggplot2)
-
-# Load shared visualization utilities
-source("src/enrichment_viz_utils.R")
-
-# Load development version if available
-if (file.exists("~/projects/prophosqua")) {
-  devtools::load_all("~/projects/prophosqua", quiet = TRUE)
-}
+library(prophosqua)
 ```
 
 ```{r load_data}

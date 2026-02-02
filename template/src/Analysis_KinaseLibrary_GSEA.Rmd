@@ -56,9 +56,7 @@ library(forcats)
 library(writexl)
 library(patchwork)
 library(DT)
-
-# Load shared visualization utilities
-source("src/enrichment_viz_utils.R")
+library(prophosqua)
 ```
 
 ```{r load-data}

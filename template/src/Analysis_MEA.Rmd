@@ -30,9 +30,7 @@ library(ggplot2)
 library(purrr)
 library(forcats)
 library(writexl)
-
-# Load shared visualization utilities
-source("src/enrichment_viz_utils.R")
+library(prophosqua)
 ```
 
 # Overview
