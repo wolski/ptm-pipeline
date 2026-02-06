@@ -5,7 +5,7 @@
 #   snakemake -j1 all                              # uses default ptm_config.yaml
 #   snakemake --configfile custom.yaml -j1 all
 
-from helpers import get_parquet_path, build_analysis_lookups
+from helpers import get_parquet_path, build_analysis_lookups, get_prophosqua_vignette, rmd_path_r_code
 
 # Default config file (can be overridden with --configfile)
 configfile: "ptm_config.yaml"
@@ -31,6 +31,10 @@ PTMSIGDB_CATS = config.get("ptmsigdb", {}).get("keep_categories", "KINASE,PATH")
 PTMSIGDB_TRIM = config.get("ptmsigdb", {}).get("trim_to", 15)
 PTMSIGDB_DIR = config.get("ptmsigdb", {}).get("output_dir", "data/ptmsigdb")
 PTMSIGDB_FILE = f"{PTMSIGDB_DIR}/ptmsigdb_filtered_{PTMSIGDB_CATS.replace(',', '_')}_{PTMSIGDB_TRIM}mer.rds"
+
+# Development mode: use local prophosqua vignettes instead of installed package
+# Set prophosqua_dev_path in config to enable (e.g., "~/projects/prophosqua")
+PROPHOSQUA_DEV_PATH = config.get("prophosqua_dev_path", "")
 
 # Build lookup dictionaries from config
 LOOKUPS = build_analysis_lookups(DIR_OUT, config["analyses"])
@@ -104,7 +108,7 @@ rule analysis_dea:
         """
         mkdir -p {DIR_OUT}/logs {ANALYSIS_DIRS[dpa]} {ANALYSIS_DIRS[dpu]}
         Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.output_dir}', \
-            output_format='html_document', knit_root_dir=getwd(), \
+            knit_root_dir=getwd(), \
             params=list(output_base='{params.output_base}', \
             utils_script='{params.utils_script}', \
             phospho_dea_dir='{params.phospho_dea_dir}', \
@@ -147,7 +151,7 @@ rule cf_dea:
         """
         mkdir -p {DIR_OUT}/logs {ANALYSIS_DIRS[cf]}
         Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.output_dir}', \
-            output_format='html_document', knit_root_dir=getwd(), \
+            knit_root_dir=getwd(), \
             params=list(output_base='{params.output_base}', \
             utils_script='{params.utils_script}', \
             phospho_dea_dir='{params.phospho_dea_dir}', \
@@ -184,12 +188,13 @@ rule combine_results:
 
 # ============================================================
 # N-to-C Analysis (one rule per analysis type)
+# Uses prophosqua::Analysis_n_to_c.Rmd vignette
 # ============================================================
 for _analysis in ANALYSIS_TYPES:
+    _rmd_finder = rmd_path_r_code("Analysis_n_to_c.Rmd", PROPHOSQUA_DEV_PATH)
     rule:
         name: f"n_to_c_{_analysis}"
         input:
-            rmd = f"{SRC}/Analysis_n_to_c.Rmd",
             xlsx = f"{DIR_OUT}/PTM_results.xlsx"
         output:
             html = f"{adir(_analysis)}/Analysis_n_to_c.html"
@@ -203,25 +208,31 @@ for _analysis in ANALYSIS_TYPES:
             max_fig = MAX_FIG,
             fdr = FDR_THRESHOLD,
             fc = LOG2FC_THRESHOLD,
-            rmd_output_dir = adir(_analysis)
+            rmd_output_dir = adir(_analysis),
+            rmd_finder = _rmd_finder
         shell:
             """
             mkdir -p """ + adir(_analysis) + """/logs
-            Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
-                output_format='html_document', knit_root_dir=getwd(), \
-                params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}', \
-                analysis_type='{params.analysis_type}', output_dir='{params.output_dir_param}', \
-                max_fig={params.max_fig}, fdr={params.fdr}, fc={params.fc}))" 2>&1 | tee {log:q}
+            Rscript -e "{params.rmd_finder}
+            file.copy(rmd_path, 'Analysis_n_to_c.Rmd', overwrite=TRUE)
+            rmarkdown::render('Analysis_n_to_c.Rmd',
+                output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
+                params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}',
+                analysis_type='{params.analysis_type}', output_dir='{params.output_dir_param}',
+                max_fig={params.max_fig}, fdr={params.fdr}, fc={params.fc}))
+            file.remove('Analysis_n_to_c.Rmd')" 2>&1 | tee {log:q}
+            mv Analysis_n_to_c.html {output.html:q}
             """
 
 # ============================================================
 # Seqlogo Analysis (one rule per analysis type)
+# Uses prophosqua::Analysis_seqlogo.Rmd vignette
 # ============================================================
 for _analysis in ANALYSIS_TYPES:
+    _rmd_finder = rmd_path_r_code("Analysis_seqlogo.Rmd", PROPHOSQUA_DEV_PATH)
     rule:
         name: f"seqlogo_{_analysis}"
         input:
-            rmd = f"{SRC}/Analysis_seqlogo.Rmd",
             xlsx = f"{DIR_OUT}/PTM_results.xlsx"
         output:
             html = f"{adir(_analysis)}/Analysis_seqlogo.html"
@@ -232,15 +243,19 @@ for _analysis in ANALYSIS_TYPES:
             sheet = ANALYSIS_SHEETS[_analysis],
             fdr = FDR_THRESHOLD,
             fc = LOG2FC_THRESHOLD,
-            rmd_output_dir = adir(_analysis)
+            rmd_output_dir = adir(_analysis),
+            rmd_finder = _rmd_finder
         shell:
             """
             mkdir -p """ + adir(_analysis) + """/logs
-            Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
-                output_format='html_document', knit_root_dir=getwd(), \
-                params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}', \
-                fdr={params.fdr}, fc={params.fc}))" \
-                2>&1 | tee {log:q}
+            Rscript -e "{params.rmd_finder}
+            file.copy(rmd_path, 'Analysis_seqlogo.Rmd', overwrite=TRUE)
+            rmarkdown::render('Analysis_seqlogo.Rmd',
+                output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
+                params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}',
+                fdr={params.fdr}, fc={params.fc}))
+            file.remove('Analysis_seqlogo.Rmd')" 2>&1 | tee {log:q}
+            mv Analysis_seqlogo.html {output.html:q}
             """
 
 # ============================================================
@@ -268,12 +283,13 @@ rule prep_ptmsigdb:
 
 # ============================================================
 # PTM-SEA Analysis (one rule per analysis type)
+# Uses prophosqua::Analysis_PTMSEA.Rmd vignette
 # ============================================================
 for _analysis in ANALYSIS_TYPES:
+    _rmd_finder = rmd_path_r_code("Analysis_PTMSEA.Rmd", PROPHOSQUA_DEV_PATH)
     rule:
         name: f"ptmsea_{_analysis}"
         input:
-            rmd = f"{SRC}/Analysis_PTMSEA.Rmd",
             xlsx = f"{DIR_OUT}/PTM_results.xlsx",
             ptmsigdb = PTMSIGDB_FILE
         output:
@@ -288,16 +304,20 @@ for _analysis in ANALYSIS_TYPES:
             output_dir_param = f"{adir(_analysis)}/PTMSEA",
             rmd_output_dir = f"{adir(_analysis)}/PTMSEA",
             final_html = f"PTMSEA_{aupper(_analysis)}.html",
-            ptmsigdb_file = PTMSIGDB_FILE
+            ptmsigdb_file = PTMSIGDB_FILE,
+            rmd_finder = _rmd_finder
         shell:
             """
             mkdir -p """ + adir(_analysis) + """/logs """ + adir(_analysis) + """/PTMSEA
-            Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
-                output_format='html_document', knit_root_dir=getwd(), \
-                params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}', \
-                stat_column='{params.stat_column}', analysis_type='{params.analysis_type}', \
-                output_dir='{params.output_dir_param}', ptmsigdb_file='{params.ptmsigdb_file}'))" 2>&1 | tee {log:q}
-            mv {params.rmd_output_dir}/Analysis_PTMSEA.html {output.html:q}
+            Rscript -e "{params.rmd_finder}
+            file.copy(rmd_path, 'Analysis_PTMSEA.Rmd', overwrite=TRUE)
+            rmarkdown::render('Analysis_PTMSEA.Rmd',
+                output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
+                params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}',
+                stat_column='{params.stat_column}', analysis_type='{params.analysis_type}',
+                output_dir='{params.output_dir_param}', ptmsigdb_file='{params.ptmsigdb_file}'))
+            file.remove('Analysis_PTMSEA.Rmd')" 2>&1 | tee {log:q}
+            mv Analysis_PTMSEA.html {output.html:q}
             """
 
 # ============================================================
@@ -387,12 +407,13 @@ for _analysis in ANALYSIS_TYPES:
 
 # ============================================================
 # KinaseLib MEA Visualization (one rule per analysis type)
+# Uses prophosqua::Analysis_MEA.Rmd vignette
 # ============================================================
 for _analysis in ANALYSIS_TYPES:
+    _rmd_finder = rmd_path_r_code("Analysis_MEA.Rmd", PROPHOSQUA_DEV_PATH)
     rule:
         name: f"vis_mea_{_analysis}"
         input:
-            rmd = f"{SRC}/Analysis_MEA.Rmd",
             mea_files = expand(f"{adir(_analysis)}/KinaseLib/mea_{{c}}.csv", c=CONTRASTS)
         output:
             html = f"{adir(_analysis)}/KinaseLib/Analysis_MEA.html"
@@ -401,45 +422,56 @@ for _analysis in ANALYSIS_TYPES:
         params:
             kinaselib_dir = f"{adir(_analysis)}/KinaseLib",
             analysis_type = aupper(_analysis),
-            rmd_output_dir = f"{adir(_analysis)}/KinaseLib"
+            rmd_output_dir = f"{adir(_analysis)}/KinaseLib",
+            rmd_finder = _rmd_finder
         shell:
             """
             mkdir -p """ + adir(_analysis) + """/logs
-            Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
-                output_format='html_document', knit_root_dir=getwd(), \
-                params=list(kinaselib_dir='{params.kinaselib_dir}', \
-                analysis_type='{params.analysis_type}'))" 2>&1 | tee {log:q}
+            Rscript -e "{params.rmd_finder}
+            file.copy(rmd_path, 'Analysis_MEA.Rmd', overwrite=TRUE)
+            rmarkdown::render('Analysis_MEA.Rmd',
+                output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
+                params=list(kinaselib_dir='{params.kinaselib_dir}',
+                analysis_type='{params.analysis_type}'))
+            file.remove('Analysis_MEA.Rmd')" 2>&1 | tee {log:q}
+            mv Analysis_MEA.html {output.html:q}
             """
 
 # ============================================================
 # KinaseLib GSEA Analysis (one rule per analysis type)
+# Uses prophosqua::Analysis_KinaseLibrary.Rmd vignette
+# Uses combined PTM_results.xlsx with consistent column names
 # ============================================================
 for _analysis in ANALYSIS_TYPES:
+    _rmd_finder = rmd_path_r_code("Analysis_KinaseLibrary.Rmd", PROPHOSQUA_DEV_PATH)
     rule:
         name: f"analysis_kinaselib_{_analysis}"
         input:
-            rmd = f"{SRC}/Analysis_KinaseLibrary_GSEA.Rmd",
-            xlsx = f"{adir(_analysis)}/{ANALYSIS_XLSX[_analysis]}",
+            xlsx = f"{DIR_OUT}/PTM_results.xlsx",
             term2gene = f"{adir(_analysis)}/KinaseLib/term2gene.csv"
         output:
             html = f"{adir(_analysis)}/KinaseLib/Analysis_KinaseLib_{aupper(_analysis)}.html"
         log:
             f"{adir(_analysis)}/logs/analysis_kinaselib.log"
         params:
-            xlsx_file = f"{adir(_analysis)}/{ANALYSIS_XLSX[_analysis]}",
+            xlsx_file = f"{DIR_OUT}/PTM_results.xlsx",
             term2gene_file = f"{adir(_analysis)}/KinaseLib/term2gene.csv",
             analysis_type = aupper(_analysis),
             output_dir_param = f"{adir(_analysis)}/KinaseLib",
-            rmd_output_dir = f"{adir(_analysis)}/KinaseLib"
+            rmd_output_dir = f"{adir(_analysis)}/KinaseLib",
+            rmd_finder = _rmd_finder
         shell:
             """
             mkdir -p """ + adir(_analysis) + """/logs
-            Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
-                output_format='html_document', knit_root_dir=getwd(), \
-                params=list(xlsx_file='{params.xlsx_file}', term2gene_file='{params.term2gene_file}', \
-                analysis_type='{params.analysis_type}', output_dir='{params.output_dir_param}'))" \
-                2>&1 | tee {log:q}
-            mv {params.rmd_output_dir}/Analysis_KinaseLibrary_GSEA.html {output.html:q}
+            Rscript -e "{params.rmd_finder}
+            file.copy(rmd_path, 'Analysis_KinaseLibrary.Rmd', overwrite=TRUE)
+            rmarkdown::render('Analysis_KinaseLibrary.Rmd',
+                output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
+                params=list(xlsx_file='{params.xlsx_file}',
+                term2gene_file='{params.term2gene_file}',
+                analysis_type='{params.analysis_type}', output_dir='{params.output_dir_param}'))
+            file.remove('Analysis_KinaseLibrary.Rmd')" 2>&1 | tee {log:q}
+            mv Analysis_KinaseLibrary.html {output.html:q}
             """
 
 # ============================================================
@@ -467,7 +499,7 @@ rule top_index:
         """
         mkdir -p {DIR_OUT}/logs
         Rscript -e "rmarkdown::render('{input.rmd:q}', output_dir='{params.rmd_output_dir}', \
-            output_format='html_document', knit_root_dir=getwd(), \
+            knit_root_dir=getwd(), \
             params=list(folder='{params.folder}'))" 2>&1 | tee {log:q}
         mv {params.rmd_output_dir}/create_top_index.html {output.html:q}
         """

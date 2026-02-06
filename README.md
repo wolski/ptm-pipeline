@@ -70,6 +70,28 @@ o40XXX_NewProject/
 - Python 3.10+, Snakemake, uv
 - R packages: tidyverse, readxl, writexl, arrow, prolfquapp, prophosqua, clusterProfiler, ggseqlogo
 
+## Configuration
+
+The `ptm_config.yaml` file controls pipeline behavior. Key options:
+
+| Option | Description |
+|--------|-------------|
+| `prophosqua_dev_path` | Path to local prophosqua checkout (e.g., `~/projects/prophosqua`). When set, uses vignettes from source instead of installed package. Useful for development. |
+| `fdr` | FDR threshold for significance (default: 0.05) |
+| `log2fc` | Log2 fold change threshold (default: 0.5) |
+| `max_fig` | Maximum figures per report (default: 10) |
+
+### Development Mode
+
+To use local prophosqua vignettes during development (skips need to rebuild/reinstall):
+
+```yaml
+# In ptm_config.yaml
+prophosqua_dev_path: ~/projects/prophosqua
+```
+
+Remove this line to use the installed prophosqua package.
+
 ## Development
 
 ```bash
