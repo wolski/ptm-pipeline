@@ -27,17 +27,10 @@ KL_PERMUTATIONS = config["kinaselib"]["permutations"]
 MEA_THREADS = config["threads"]["mea"]
 
 # PTMsigDB preprocessing config
-# Support both new keep_sources (list) and legacy keep_categories (string)
-_ptmsigdb_cfg = config.get("ptmsigdb", {})
-if "keep_sources" in _ptmsigdb_cfg:
-    _sources = _ptmsigdb_cfg["keep_sources"]
-    PTMSIGDB_SOURCES = ",".join(_sources) if isinstance(_sources, list) else _sources
-elif "keep_categories" in _ptmsigdb_cfg:
-    PTMSIGDB_SOURCES = _ptmsigdb_cfg["keep_categories"]
-else:
-    PTMSIGDB_SOURCES = "KINASE-PSP"
-PTMSIGDB_TRIM = _ptmsigdb_cfg.get("trim_to", 15)
-PTMSIGDB_DIR = _ptmsigdb_cfg.get("output_dir", "data/ptmsigdb")
+_ptmsigdb = config.get("ptmsigdb", {})
+PTMSIGDB_SOURCES = ",".join(_ptmsigdb.get("keep_sources", ["KINASE-PSP"]))
+PTMSIGDB_TRIM = _ptmsigdb.get("trim_to", 15)
+PTMSIGDB_DIR = _ptmsigdb.get("output_dir", "data/ptmsigdb")
 PTMSIGDB_FILE = f"{PTMSIGDB_DIR}/ptmsigdb_filtered_{PTMSIGDB_SOURCES.replace(',', '_')}_{PTMSIGDB_TRIM}mer.rds"
 
 # Development mode: use local prophosqua vignettes instead of installed package
