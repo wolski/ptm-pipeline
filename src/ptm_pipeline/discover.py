@@ -47,6 +47,8 @@ def find_annotation_file(phospho_dea_dir: Path) -> Path | None:
 
         # Try dataset file (alternative format)
         dataset_files = list(inputs_dir.glob("*_dataset*.tsv"))
+        if not dataset_files:
+            dataset_files = list(inputs_dir.glob("dataset*.tsv"))
         if dataset_files:
             return dataset_files[0]
 
