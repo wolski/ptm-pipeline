@@ -21,12 +21,13 @@ suppressPackageStartupMessages({
 #'
 #' @param data Data frame with PTM results
 #' @param analysis_type One of "dpa", "dpu", or "cf"
-#' @param reference_data Optional reference data for CF (to get gene_name, protein_length)
 #' @return Standardized data frame
-standardize_results <- function(data, analysis_type, reference_data = NULL) {
+standardize_results <- function(data, analysis_type) {
   analysis_type <- tolower(analysis_type)
 
   # Column configuration for each analysis type
+  # DPA and CF now export diff.site, FDR.site, statistic.site directly.
+  # DPU still uses diff_diff, FDR_I, tstatistic_I (from prophosqua::test_diff).
   configs <- list(
     dpa = list(
       rename = c(gene_name = "gene_name.site"),
@@ -41,10 +42,10 @@ standardize_results <- function(data, analysis_type, reference_data = NULL) {
                       "SequenceWindow", "protein_length")
     ),
     cf = list(
-      rename = c(diff.site = "diff_diff", FDR.site = "FDR_I", statistic.site = "statistic"),
-      direct_cols = c("protein_Id", "site", "contrast", "posInProtein", "modAA", "SequenceWindow",
-                      "gene_name", "protein_length"),
-      needs_join = TRUE
+      rename = c(),
+      direct_cols = c("protein_Id", "site", "contrast", "posInProtein", "modAA",
+                      "SequenceWindow", "gene_name", "protein_length",
+                      "diff.site", "FDR.site", "statistic.site")
     )
   )
 
@@ -53,14 +54,6 @@ standardize_results <- function(data, analysis_type, reference_data = NULL) {
   }
 
   config <- configs[[analysis_type]]
-
-  # Handle CF's need to join with reference data
-  if (isTRUE(config$needs_join) && !is.null(reference_data)) {
-    site_info <- reference_data |>
-      dplyr::select(site, gene_name = gene_name.site, protein_length) |>
-      dplyr::distinct()
-    data <- data |> dplyr::left_join(site_info, by = "site")
-  }
 
   # Build select specification: direct cols + renamed cols
   # Use select() with renaming to avoid duplicate column issues
@@ -77,7 +70,7 @@ standardize_results <- function(data, analysis_type, reference_data = NULL) {
 # Backward compatibility wrappers
 standardize_dpa <- function(data) standardize_results(data, "dpa")
 standardize_dpu <- function(data) standardize_results(data, "dpu")
-standardize_cf <- function(cf_data, dpa_data) standardize_results(cf_data, "cf", dpa_data)
+standardize_cf <- function(data) standardize_results(data, "cf")
 
 #' Combine all PTM results into standardized format
 #'
@@ -106,7 +99,7 @@ combine_ptm_results <- function(dpa_xlsx, dpu_xlsx, cf_xlsx,
   message("Standardizing column names...")
   dpa <- standardize_dpa(dpa_raw)
   dpu <- standardize_dpu(dpu_raw)
-  cf <- standardize_cf(cf_raw, dpa_raw)
+  cf <- standardize_cf(cf_raw)
 
   message("  DPA: ", nrow(dpa), " rows")
   message("  DPU: ", nrow(dpu), " rows")

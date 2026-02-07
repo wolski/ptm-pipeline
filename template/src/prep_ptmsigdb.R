@@ -1,13 +1,17 @@
 #!/usr/bin/env Rscript
-# Preprocess PTMsigDB: download, merge human+mouse, filter categories
+# Preprocess PTMsigDB: download, merge human+mouse, filter by sub-source
 #
-# Usage: Rscript prep_ptmsigdb.R --output_dir data/ptmsigdb --keep_categories KINASE,PATH
+# Usage: Rscript prep_ptmsigdb.R --output_dir data/ptmsigdb --keep_sources KINASE-PSP,PATH-NP
 #
-# Categories in PTMsigDB:
-#   KINASE-PSP_  : Kinase-substrate relationships (keep by default)
-#   PATH-PSP_    : Pathway signatures (keep by default)
-#   PERT-PSP_    : Perturbation signatures (remove by default)
-#   DISEASE-PSP_ : Disease-associated patterns (remove by default)
+# Sub-sources in PTMsigDB v2.0.0:
+#   KINASE-PSP   : PhosphoSitePlus kinase-substrate (experimental)
+#   KINASE-iKiP  : iKiP kinase-substrate (computational)
+#   PATH-NP      : NetPath pathways
+#   PATH-WP      : WikiPathways
+#   PATH-BI      : Broad Institute pathways
+#   PERT-PSP     : Perturbation (PSP)
+#   PERT-P100-*  : Perturbation (P100 variants)
+#   DISEASE-PSP  : Disease associations
 
 library(prophosqua)
 library(fgsea)
@@ -18,8 +22,8 @@ library(stringr)
 option_list <- list(
   make_option("--output_dir", type = "character", default = "data/ptmsigdb",
               help = "Output directory for filtered GMT files"),
-  make_option("--keep_categories", type = "character", default = "KINASE,PATH",
-              help = "Comma-separated categories to keep (default: KINASE,PATH)"),
+  make_option("--keep_sources", type = "character", default = "KINASE-PSP",
+              help = "Comma-separated sub-sources to keep (e.g. KINASE-PSP,PATH-NP)"),
   make_option("--trim_to", type = "integer", default = 15,
               help = "Trim flanking sequences to N residues (default: 15)")
 )
@@ -54,21 +58,27 @@ names(pathways_merged) <- all_names
 
 message(sprintf("Total pathways before filtering: %d", length(pathways_merged)))
 
-# Filter by category
-keep_cats <- str_split(args$keep_categories, ",")[[1]]
-keep_pattern <- paste0("^(", paste(keep_cats, collapse = "|"), ")-")
+# Filter by sub-source (e.g. KINASE-PSP, PATH-NP)
+keep_sources <- str_split(args$keep_sources, ",")[[1]]
+keep_pattern <- paste0("^(", paste(keep_sources, collapse = "|"), ")_")
 
 pathways_filtered <- pathways_merged[str_detect(names(pathways_merged), keep_pattern)]
 
 message(sprintf("Pathways after filtering (keeping %s): %d",
-                args$keep_categories, length(pathways_filtered)))
+                args$keep_sources, length(pathways_filtered)))
 
-# Report category counts
-message("Category breakdown:")
-for (cat in c("KINASE", "PATH", "PERT", "DISEASE")) {
-  n <- sum(str_detect(names(pathways_merged), paste0("^", cat, "-")))
-  kept <- sum(str_detect(names(pathways_filtered), paste0("^", cat, "-")))
-  message(sprintf("  %s: %d total, %d kept", cat, n, kept))
+# Report sub-source counts
+all_sources <- c("KINASE-PSP", "KINASE-iKiP", "PATH-NP", "PATH-WP", "PATH-BI",
+                 "PERT-PSP", "PERT-P100-DIA2", "PERT-P100-PRM", "PERT-P100-DIA",
+                 "DISEASE-PSP")
+message("Sub-source breakdown:")
+for (src in all_sources) {
+  n <- sum(str_detect(names(pathways_merged), paste0("^", src, "_")))
+  kept <- sum(str_detect(names(pathways_filtered), paste0("^", src, "_")))
+  if (n > 0) {
+    marker <- if (kept > 0) " *" else ""
+    message(sprintf("  %s: %d total, %d kept%s", src, n, kept, marker))
+  }
 }
 
 # Trim flanking sequences
@@ -78,7 +88,7 @@ pathways_trimmed <- trim_ptmsigdb_pathways(pathways_filtered, trim_to = as.chara
 # Write filtered GMT
 output_file <- file.path(args$output_dir,
                          sprintf("ptmsigdb_filtered_%s_%dmer.gmt",
-                                 gsub(",", "_", args$keep_categories),
+                                 gsub(",", "_", args$keep_sources),
                                  args$trim_to))
 
 # Convert to GMT format and write

@@ -27,14 +27,22 @@ KL_PERMUTATIONS = config["kinaselib"]["permutations"]
 MEA_THREADS = config["threads"]["mea"]
 
 # PTMsigDB preprocessing config
-PTMSIGDB_CATS = config.get("ptmsigdb", {}).get("keep_categories", "KINASE,PATH")
-PTMSIGDB_TRIM = config.get("ptmsigdb", {}).get("trim_to", 15)
-PTMSIGDB_DIR = config.get("ptmsigdb", {}).get("output_dir", "data/ptmsigdb")
-PTMSIGDB_FILE = f"{PTMSIGDB_DIR}/ptmsigdb_filtered_{PTMSIGDB_CATS.replace(',', '_')}_{PTMSIGDB_TRIM}mer.rds"
+# Support both new keep_sources (list) and legacy keep_categories (string)
+_ptmsigdb_cfg = config.get("ptmsigdb", {})
+if "keep_sources" in _ptmsigdb_cfg:
+    _sources = _ptmsigdb_cfg["keep_sources"]
+    PTMSIGDB_SOURCES = ",".join(_sources) if isinstance(_sources, list) else _sources
+elif "keep_categories" in _ptmsigdb_cfg:
+    PTMSIGDB_SOURCES = _ptmsigdb_cfg["keep_categories"]
+else:
+    PTMSIGDB_SOURCES = "KINASE-PSP"
+PTMSIGDB_TRIM = _ptmsigdb_cfg.get("trim_to", 15)
+PTMSIGDB_DIR = _ptmsigdb_cfg.get("output_dir", "data/ptmsigdb")
+PTMSIGDB_FILE = f"{PTMSIGDB_DIR}/ptmsigdb_filtered_{PTMSIGDB_SOURCES.replace(',', '_')}_{PTMSIGDB_TRIM}mer.rds"
 
 # Development mode: use local prophosqua vignettes instead of installed package
-# Set prophosqua_dev_path in config to enable (e.g., "~/projects/prophosqua")
-PROPHOSQUA_DEV_PATH = config.get("prophosqua_dev_path", "")
+# Set prophosqua_dev_path in config (or remove to use installed package)
+PROPHOSQUA_DEV_PATH = config.get("prophosqua_dev_path", "~/projects/prophosqua")
 
 # Build lookup dictionaries from config
 LOOKUPS = build_analysis_lookups(DIR_OUT, config["analyses"])
@@ -260,7 +268,7 @@ for _analysis in ANALYSIS_TYPES:
 
 # ============================================================
 # PTMsigDB Preprocessing
-# Downloads human+mouse PTMsigDB, filters categories, trims sequences
+# Downloads human+mouse PTMsigDB, filters by sub-source, trims sequences
 # ============================================================
 rule prep_ptmsigdb:
     output:
@@ -270,14 +278,14 @@ rule prep_ptmsigdb:
         f"{PTMSIGDB_DIR}/logs/prep_ptmsigdb.log"
     params:
         output_dir = PTMSIGDB_DIR,
-        keep_cats = PTMSIGDB_CATS,
+        keep_sources = PTMSIGDB_SOURCES,
         trim_to = PTMSIGDB_TRIM
     shell:
         """
         mkdir -p {params.output_dir}/logs
         Rscript {SRC}/prep_ptmsigdb.R \
             --output_dir {params.output_dir:q} \
-            --keep_categories {params.keep_cats} \
+            --keep_sources {params.keep_sources} \
             --trim_to {params.trim_to} 2>&1 | tee {log:q}
         """
 

@@ -83,9 +83,9 @@ get_analysis_config <- function(analysis_type) {
     ),
     cf = list(
       sheet = "results",
-      stat_col = "statistic",
-      diff_col = "diff_diff",
-      fdr_col = "FDR_I",
+      stat_col = "statistic.site",
+      diff_col = "diff.site",
+      fdr_col = "FDR.site",
       flanking_col = "SequenceWindow"
     )
   )

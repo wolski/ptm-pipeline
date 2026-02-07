@@ -114,9 +114,12 @@ def generate_config(
         # PTMsigDB preprocessing
         "ptmsigdb": {
             "output_dir": "data/ptmsigdb",
-            "keep_categories": "KINASE",
+            "keep_sources": ["KINASE-PSP"],
             "trim_to": 15,
         },
+
+        # Development: use vignettes from local prophosqua checkout
+        "prophosqua_dev_path": "~/projects/prophosqua",
     }
 
 
@@ -126,6 +129,11 @@ def write_config(config: dict, output_path: Path) -> None:
         # Custom representer to avoid aliases
         yaml.Dumper.ignore_aliases = lambda *args: True
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+        # Remind about dev mode
+        f.write(
+            "\n# NOTE: prophosqua_dev_path is enabled (dev mode).\n"
+            "# Remove or comment out for production use with installed package.\n"
+        )
 
 
 def config_to_yaml_string(config: dict) -> str:

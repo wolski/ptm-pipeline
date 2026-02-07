@@ -266,14 +266,16 @@ if (has_new_format) {
       protein_Id_site,
       posInProtein = PTM_SiteLocation,
       modAA = PTM_SiteAA,
-      SequenceWindow = !!sym(seq_col)
+      SequenceWindow = !!sym(seq_col),
+      gene_name, protein_length
     ) |>
     dplyr::distinct()
   # Merge using protein_Id_site
   ctr_df_seq_window <- dplyr::left_join(ctr_df, site_info, by = "protein_Id_site")
 } else {
   site_info <- full_results |>
-    dplyr::select(site, posInProtein, modAA, SequenceWindow = !!sym(seq_col)) |>
+    dplyr::select(site, posInProtein, modAA, SequenceWindow = !!sym(seq_col),
+                  gene_name, protein_length) |>
     dplyr::distinct()
   # Merge using site
   ctr_df_seq_window <- dplyr::left_join(ctr_df, site_info, by = "site")
@@ -286,10 +288,10 @@ if (has_new_format) {
 We are exporting only those contrasts computed without imputation.
 
 ```{r exportResults}
-# Rename columns to match format expected by n_to_c_usage
+# Rename columns to match DPA convention (diff.site, FDR.site, statistic.site)
 ctr_df_seq_window$modelName |> table()
 ctr_df <- ctr_df_seq_window |>
-  dplyr::rename(diff_diff = diff, FDR_I = FDR) |>
+  dplyr::rename(diff.site = diff, FDR.site = FDR, statistic.site = statistic) |>
   dplyr::mutate(modelName = ifelse(modelName == "WaldTest_moderated", "Linear_Model_Moderated", "MissingInOneCondition"))
 # Remove contrasts computed with imputation
 ctr_df$modelName |> table()
