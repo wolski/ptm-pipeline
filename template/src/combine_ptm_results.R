@@ -105,15 +105,24 @@ combine_ptm_results <- function(dpa_xlsx, dpu_xlsx, cf_xlsx,
   message("  DPU: ", nrow(dpu), " rows")
   message("  CF:  ", nrow(cf), " rows")
 
+  # Helper: normalize column names across prolfquapp versions
+  norm_cols <- function(df) {
+    if ("name" %in% colnames(df) && !"Name" %in% colnames(df)) {
+      df <- dplyr::rename(df, Name = name)
+    }
+    df
+  }
+
   # Load normalized abundances
   message("Loading protein abundances from: ", protein_parquet)
   protein_abund <- arrow::read_parquet(protein_parquet) |>
+    norm_cols() |>
     dplyr::filter(!grepl("^rev_", protein_Id)) |>
     dplyr::select(Name, protein_Id, normalized_abundance) |>
     tidyr::pivot_wider(names_from = Name, values_from = normalized_abundance)
 
   message("Loading site abundances from: ", site_parquet)
-  site_raw <- arrow::read_parquet(site_parquet)
+  site_raw <- arrow::read_parquet(site_parquet) |> norm_cols()
 
   # Get site column name (may be 'site' or 'protein_Id_site')
   site_col <- if ("site" %in% colnames(site_raw)) "site" else "protein_Id_site"
@@ -127,9 +136,11 @@ combine_ptm_results <- function(dpa_xlsx, dpu_xlsx, cf_xlsx,
 
   # Read parquet again to get long format for joining
   site_long <- arrow::read_parquet(site_parquet) |>
+    norm_cols() |>
     dplyr::select(Name, site = !!sym(site_col), protein_Id, site_abund = normalized_abundance)
 
   protein_long <- arrow::read_parquet(protein_parquet) |>
+    norm_cols() |>
     dplyr::filter(!grepl("^rev_", protein_Id)) |>
     dplyr::select(Name, protein_Id, protein_abund = normalized_abundance)
 
