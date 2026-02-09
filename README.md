@@ -113,6 +113,10 @@ uv sync                          # Sync environment
 
 Commit `uv.lock` to ensure reproducible installs.
 
+## Materials and Methods
+
+See [METHODS.md](METHODS.md) for a description of the computational workflow, software components, and references for citing this pipeline.
+
 ## License
 
 MIT

@@ -14,5 +14,9 @@ build/
 # OS
 .DS_Store
 
+# Office temp/lock files
+~$*
+*.docx
+
 # Test data (real project data for development)
 test_data/
