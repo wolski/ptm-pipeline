@@ -212,6 +212,11 @@ def init_project(
     fdr = float(Prompt.ask("FDR threshold", default="0.25"))
     log2fc = float(Prompt.ask("log2FC threshold", default="0.5"))
 
+    # Analysis options
+    console.print("\n[bold]Analysis options:[/bold]")
+    max_fig = int(Prompt.ask("Max n-to-c plots per analysis", default="10"))
+    run_kinase = Confirm.ask("Run kinase activity analysis?", default=True)
+
     # Generate config
     console.print("\n[bold]Generating configuration...[/bold]")
     config = generate_config(
@@ -223,6 +228,8 @@ def init_project(
         project_dir=project_dir,
         fdr=fdr,
         log2fc=log2fc,
+        max_fig=max_fig,
+        run_kinase=run_kinase,
     )
 
     if dry_run:

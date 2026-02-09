@@ -25,6 +25,7 @@ KL_KIN_TYPE = config["kinaselib"]["kin_type"]
 KL_THRESHOLD = config["kinaselib"]["threshold"]
 KL_PERMUTATIONS = config["kinaselib"]["permutations"]
 MEA_THREADS = config["threads"]["mea"]
+RUN_KINASE = config.get("run_kinase", True)
 
 # PTMsigDB preprocessing config
 _ptmsigdb = config.get("ptmsigdb", {})
@@ -72,12 +73,12 @@ rule all:
         expand("{d}/Analysis_n_to_c.html", d=ANALYSIS_DIRS.values()),
         # Seqlogo plots (all analyses)
         expand("{d}/Analysis_seqlogo.html", d=ANALYSIS_DIRS.values()),
-        # PTM-SEA (all analyses)
-        [f"{adir(a)}/PTMSEA/PTMSEA_{aupper(a)}.html" for a in ANALYSIS_TYPES],
-        # KinaseLib GSEA (all analyses)
-        [f"{adir(a)}/KinaseLib/Analysis_KinaseLib_{aupper(a)}.html" for a in ANALYSIS_TYPES],
-        # KinaseLib MEA Visualization (all analyses)
-        expand("{d}/KinaseLib/Analysis_MEA.html", d=ANALYSIS_DIRS.values()),
+        # PTM-SEA (all analyses, optional)
+        [f"{adir(a)}/PTMSEA/PTMSEA_{aupper(a)}.html" for a in ANALYSIS_TYPES] if RUN_KINASE else [],
+        # KinaseLib GSEA (all analyses, optional)
+        [f"{adir(a)}/KinaseLib/Analysis_KinaseLib_{aupper(a)}.html" for a in ANALYSIS_TYPES] if RUN_KINASE else [],
+        # KinaseLib MEA Visualization (all analyses, optional)
+        expand("{d}/KinaseLib/Analysis_MEA.html", d=ANALYSIS_DIRS.values()) if RUN_KINASE else [],
         # Top index page
         f"{DIR_OUT}/index.html",
         # Zip archives (results + DEA inputs)
@@ -215,13 +216,11 @@ for _analysis in ANALYSIS_TYPES:
             """
             mkdir -p """ + adir(_analysis) + """/logs
             Rscript -e "{params.rmd_finder}
-            file.copy(rmd_path, 'Analysis_n_to_c.Rmd', overwrite=TRUE)
-            rmarkdown::render('Analysis_n_to_c.Rmd',
+            rmarkdown::render(rmd_path, output_dir=getwd(), knit_root_dir=getwd(),
                 output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
                 params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}',
                 analysis_type='{params.analysis_type}', output_dir='{params.output_dir_param}',
-                max_fig={params.max_fig}, fdr={params.fdr}, fc={params.fc}))
-            file.remove('Analysis_n_to_c.Rmd')" 2>&1 | tee {log:q}
+                max_fig={params.max_fig}, fdr={params.fdr}, fc={params.fc}))" 2>&1 | tee {log:q}
             mv Analysis_n_to_c.html {output.html:q}
             """
 
@@ -250,12 +249,10 @@ for _analysis in ANALYSIS_TYPES:
             """
             mkdir -p """ + adir(_analysis) + """/logs
             Rscript -e "{params.rmd_finder}
-            file.copy(rmd_path, 'Analysis_seqlogo.Rmd', overwrite=TRUE)
-            rmarkdown::render('Analysis_seqlogo.Rmd',
+            rmarkdown::render(rmd_path, output_dir=getwd(), knit_root_dir=getwd(),
                 output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
                 params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}',
-                fdr={params.fdr}, fc={params.fc}))
-            file.remove('Analysis_seqlogo.Rmd')" 2>&1 | tee {log:q}
+                fdr={params.fdr}, fc={params.fc}))" 2>&1 | tee {log:q}
             mv Analysis_seqlogo.html {output.html:q}
             """
 
@@ -311,13 +308,11 @@ for _analysis in ANALYSIS_TYPES:
             """
             mkdir -p """ + adir(_analysis) + """/logs """ + adir(_analysis) + """/PTMSEA
             Rscript -e "{params.rmd_finder}
-            file.copy(rmd_path, 'Analysis_PTMSEA.Rmd', overwrite=TRUE)
-            rmarkdown::render('Analysis_PTMSEA.Rmd',
+            rmarkdown::render(rmd_path, output_dir=getwd(), knit_root_dir=getwd(),
                 output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
                 params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}',
                 stat_column='{params.stat_column}', analysis_type='{params.analysis_type}',
-                output_dir='{params.output_dir_param}', ptmsigdb_file='{params.ptmsigdb_file}'))
-            file.remove('Analysis_PTMSEA.Rmd')" 2>&1 | tee {log:q}
+                output_dir='{params.output_dir_param}', ptmsigdb_file='{params.ptmsigdb_file}'))" 2>&1 | tee {log:q}
             mv Analysis_PTMSEA.html {output.html:q}
             """
 
@@ -429,12 +424,10 @@ for _analysis in ANALYSIS_TYPES:
             """
             mkdir -p """ + adir(_analysis) + """/logs
             Rscript -e "{params.rmd_finder}
-            file.copy(rmd_path, 'Analysis_MEA.Rmd', overwrite=TRUE)
-            rmarkdown::render('Analysis_MEA.Rmd',
+            rmarkdown::render(rmd_path, output_dir=getwd(), knit_root_dir=getwd(),
                 output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
                 params=list(kinaselib_dir='{params.kinaselib_dir}',
-                analysis_type='{params.analysis_type}'))
-            file.remove('Analysis_MEA.Rmd')" 2>&1 | tee {log:q}
+                analysis_type='{params.analysis_type}'))" 2>&1 | tee {log:q}
             mv Analysis_MEA.html {output.html:q}
             """
 
@@ -465,13 +458,11 @@ for _analysis in ANALYSIS_TYPES:
             """
             mkdir -p """ + adir(_analysis) + """/logs
             Rscript -e "{params.rmd_finder}
-            file.copy(rmd_path, 'Analysis_KinaseLibrary.Rmd', overwrite=TRUE)
-            rmarkdown::render('Analysis_KinaseLibrary.Rmd',
+            rmarkdown::render(rmd_path, output_dir=getwd(), knit_root_dir=getwd(),
                 output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
                 params=list(xlsx_file='{params.xlsx_file}',
                 term2gene_file='{params.term2gene_file}',
-                analysis_type='{params.analysis_type}', output_dir='{params.output_dir_param}'))
-            file.remove('Analysis_KinaseLibrary.Rmd')" 2>&1 | tee {log:q}
+                analysis_type='{params.analysis_type}', output_dir='{params.output_dir_param}'))" 2>&1 | tee {log:q}
             mv Analysis_KinaseLibrary.html {output.html:q}
             """
 
@@ -486,9 +477,9 @@ rule top_index:
         dpu_overview = f"{ANALYSIS_DIRS['dpu']}/Result_DPU.html",
         n_to_c = expand("{d}/Analysis_n_to_c.html", d=ANALYSIS_DIRS.values()),
         seqlogo = expand("{d}/Analysis_seqlogo.html", d=ANALYSIS_DIRS.values()),
-        ptmsea = [f"{adir(a)}/PTMSEA/PTMSEA_{aupper(a)}.html" for a in ANALYSIS_TYPES],
-        kinaselib = [f"{adir(a)}/KinaseLib/Analysis_KinaseLib_{aupper(a)}.html" for a in ANALYSIS_TYPES],
-        mea = expand("{d}/KinaseLib/Analysis_MEA.html", d=ANALYSIS_DIRS.values())
+        ptmsea = [f"{adir(a)}/PTMSEA/PTMSEA_{aupper(a)}.html" for a in ANALYSIS_TYPES] if RUN_KINASE else [],
+        kinaselib = [f"{adir(a)}/KinaseLib/Analysis_KinaseLib_{aupper(a)}.html" for a in ANALYSIS_TYPES] if RUN_KINASE else [],
+        mea = expand("{d}/KinaseLib/Analysis_MEA.html", d=ANALYSIS_DIRS.values()) if RUN_KINASE else []
     output:
         html = f"{DIR_OUT}/index.html"
     log:
