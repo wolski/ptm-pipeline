@@ -21,7 +21,7 @@ Quantitative differential expression analysis of proteomics data is performed us
 Search engine and quantification outputs (e.g., Spectronaut from Biognosys, FragPipe) are read and preprocessed using the **prolfquappPTMReaders** R package, which standardizes site-level quantification data for downstream analysis by prolfquapp.
 
 - Wolski W.
-  "prolfqua/prolfquappPTMreaders: 0.1.0." Zenodo, 2025.
+  "prolfqua/prolfquappPTMreaders: 0.3.0." Zenodo, 2025.
   DOI: [10.5281/zenodo.15845243](https://doi.org/10.5281/zenodo.15845243)
 
 ## Integrated PTM Analysis (prophosqua)
@@ -69,5 +69,5 @@ Motif-based kinase activity inference is performed using the **Kinase Library**,
 The analysis workflow is orchestrated using **Snakemake** and deployed to analysis projects via the `ptm-pipeline` command-line tool. The pipeline coordinates all steps from data preprocessing through differential expression, PTM-specific analyses, and kinase activity inference.
 
 - Wolski WE.
-  "wolski/ptm-pipeline: 0.1.1." Zenodo, 2025.
+  "wolski/ptm-pipeline: 0.2.0." Zenodo, 2025.
   DOI: [10.5281/zenodo.18349420](https://doi.org/10.5281/zenodo.18349420)
