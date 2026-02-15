@@ -37,16 +37,22 @@ ENV PATH="/root/.local/bin:$PATH"
 RUN R -e "install.packages(c( \
     'tidyverse', 'readxl', 'writexl', 'arrow', \
     'ggseqlogo', 'seqinr', 'patchwork', 'remotes', \
-    'bookdown', 'rmarkdown' \
+    'bookdown', 'rmarkdown', 'DT', 'optparse', 'here' \
 ), repos='https://cloud.r-project.org/')"
 
-# R packages from Bioconductor
-RUN R -e "BiocManager::install(c('clusterProfiler', 'fgsea', 'enrichplot'), ask=FALSE, update=FALSE)"
+# R packages from Bioconductor (needed by prolfquapp + pipeline scripts)
+RUN R -e "BiocManager::install(c( \
+    'SummarizedExperiment', 'vsn', \
+    'clusterProfiler', 'fgsea', 'enrichplot' \
+), ask=FALSE, update=FALSE)"
 
-# R packages from GitHub
-RUN R -e "remotes::install_github('fgcz/prolfqua', upgrade='never')"
-RUN R -e "remotes::install_github('prolfqua/prolfquapp', upgrade='never')"
-RUN R -e "remotes::install_github('prolfqua/prophosqua', upgrade='never')"
+# R packages from GitHub (dependencies=TRUE to pull remaining CRAN deps)
+RUN R -e "remotes::install_github('fgcz/prolfqua', dependencies=TRUE, upgrade='never')"
+RUN R -e "remotes::install_github('prolfqua/prolfquapp', dependencies=TRUE, upgrade='never')"
+RUN R -e "remotes::install_github('prolfqua/prophosqua', dependencies=TRUE, upgrade='never')"
+
+# Verify critical packages are loadable
+RUN R -e "library(prolfqua); library(prolfquapp); library(prophosqua); message('All R packages OK')"
 
 # Python: install snakemake, kinase-library, and ptm-pipeline via uv
 RUN uv tool install snakemake
