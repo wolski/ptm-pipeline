@@ -15,6 +15,12 @@ dependencies = [
     "kinase-library @ file:///Users/wolski/projects/kinase-library",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "openpyxl>=3.1",
+    "pyarrow>=14.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/wolski/ptm-pipeline"
 Repository = "https://github.com/wolski/ptm-pipeline"

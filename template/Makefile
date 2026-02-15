@@ -12,7 +12,7 @@ PTM_PIPELINE_SRC := /Users/wolski/projects/ptm-pipeline/
 #PTM_PIPELINE_SRC := git+https://github.com/wolski/ptm-pipeline
 
 # Pipeline targets
-.PHONY: all dry-run clean help install upgrade validate
+.PHONY: all dry-run clean clean-all init init-default install upgrade update validate help
 
 all: ## Run the full pipeline
 	snakemake -s $(SNAKEFILE) --configfile $(CONFIG) -j$(CORES) all
@@ -30,8 +30,12 @@ clean-all: clean ## Clean slate - remove everything for fresh init
 	rm -rf src Snakefile helpers.py ptm_config.yaml
 
 # Pipeline management
-init: ## (Re)initialize pipeline in this directory
+init: ## (Re)initialize pipeline in this directory (interactive)
 	ptm-pipeline init . --force
+
+init-default: ## (Re)initialize pipeline with defaults (non-interactive)
+	ptm-pipeline init_default .
+
 install: ## Install ptm-pipeline tool
 	uv tool install $(PTM_PIPELINE_SRC)
 

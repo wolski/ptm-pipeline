@@ -27,6 +27,12 @@ KL_PERMUTATIONS = config["kinaselib"]["permutations"]
 MEA_THREADS = config["threads"]["mea"]
 RUN_KINASE = config.get("run_kinase", True)
 
+# GSEA parameters (shared by PTM-SEA and KinaseLib GSEA)
+_gsea_cfg = config.get("gsea", {})
+GSEA_MIN_SIZE = _gsea_cfg.get("min_size", 10)
+GSEA_MAX_SIZE = _gsea_cfg.get("max_size", 500)
+GSEA_N_PERM = _gsea_cfg.get("n_perm", 1000)
+
 # PTMsigDB preprocessing config
 _ptmsigdb = config.get("ptmsigdb", {})
 PTMSIGDB_SOURCES = ",".join(_ptmsigdb.get("keep_sources", ["KINASE-PSP"]))
@@ -303,6 +309,9 @@ for _analysis in ANALYSIS_TYPES:
             rmd_output_dir = f"{adir(_analysis)}/PTMSEA",
             final_html = f"PTMSEA_{aupper(_analysis)}.html",
             ptmsigdb_file = PTMSIGDB_FILE,
+            min_size = GSEA_MIN_SIZE,
+            max_size = GSEA_MAX_SIZE,
+            n_perm = GSEA_N_PERM,
             rmd_finder = _rmd_finder
         shell:
             """
@@ -312,7 +321,8 @@ for _analysis in ANALYSIS_TYPES:
                 output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
                 params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}',
                 stat_column='{params.stat_column}', analysis_type='{params.analysis_type}',
-                output_dir='{params.output_dir_param}', ptmsigdb_file='{params.ptmsigdb_file}'))" 2>&1 | tee {log:q}
+                output_dir='{params.output_dir_param}', ptmsigdb_file='{params.ptmsigdb_file}',
+                min_size={params.min_size}, max_size={params.max_size}, n_perm={params.n_perm}))" 2>&1 | tee {log:q}
             mv Analysis_PTMSEA.html {output.html:q}
             """
 
@@ -453,6 +463,9 @@ for _analysis in ANALYSIS_TYPES:
             analysis_type = aupper(_analysis),
             output_dir_param = f"{adir(_analysis)}/KinaseLib",
             rmd_output_dir = f"{adir(_analysis)}/KinaseLib",
+            min_size = GSEA_MIN_SIZE,
+            max_size = GSEA_MAX_SIZE,
+            n_perm = GSEA_N_PERM,
             rmd_finder = _rmd_finder
         shell:
             """
@@ -462,7 +475,8 @@ for _analysis in ANALYSIS_TYPES:
                 output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
                 params=list(xlsx_file='{params.xlsx_file}',
                 term2gene_file='{params.term2gene_file}',
-                analysis_type='{params.analysis_type}', output_dir='{params.output_dir_param}'))" 2>&1 | tee {log:q}
+                analysis_type='{params.analysis_type}', output_dir='{params.output_dir_param}',
+                min_size={params.min_size}, max_size={params.max_size}, n_perm={params.n_perm}))" 2>&1 | tee {log:q}
             mv Analysis_KinaseLibrary.html {output.html:q}
             """
 

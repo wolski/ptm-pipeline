@@ -101,6 +101,13 @@ def generate_config(
         # Contrasts for MEA analysis
         "contrasts": contrasts,
 
+        # GSEA parameters (shared by PTM-SEA and KinaseLib GSEA)
+        "gsea": {
+            "min_size": 10,
+            "max_size": 500,
+            "n_perm": 1000,
+        },
+
         # KinaseLib settings
         "kinaselib": {
             "repo": "git+https://github.com/wolski/kinase-library",

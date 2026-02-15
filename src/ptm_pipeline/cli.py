@@ -24,10 +24,12 @@ def init(
     name: Annotated[str | None, cyclopts.Parameter(name=["--name", "-n"], help="Experiment name (auto-detected if not provided)")] = None,
     dry_run: Annotated[bool, cyclopts.Parameter(help="Show what would be done without making changes")] = False,
     force: Annotated[bool, cyclopts.Parameter(name=["--force", "-f"], help="Overwrite existing files")] = False,
+    default: Annotated[bool, cyclopts.Parameter(name=["--default", "-d"], help="Non-interactive mode: use defaults for all prompts")] = False,
 ):
     """Initialize PTM pipeline in a project directory.
 
     Discovers DEA folders from INPUT_DIR, writes pipeline files to OUTPUT_DIR.
+    Use --default for fully non-interactive initialization with default settings.
     """
     from .init import init_project
 
@@ -45,6 +47,32 @@ def init(
         name=name,
         dry_run=dry_run,
         force=force,
+        default=default,
+    )
+
+    raise SystemExit(0 if success else 1)
+
+
+@app.command
+def init_default(
+    directory: Annotated[Path, cyclopts.Parameter(help="Directory containing DEA folders (also used as output)")] = Path("."),
+):
+    """Initialize PTM pipeline with all defaults (non-interactive).
+
+    Equivalent to: ptm-pipeline init DIRECTORY DIRECTORY --default --force
+    Useful for CI and integration tests.
+    """
+    from .init import init_project
+
+    if not directory.exists():
+        console.print(f"[red]Error:[/red] Directory does not exist: {directory}")
+        raise SystemExit(1)
+
+    success = init_project(
+        project_dir=directory,
+        input_dir=directory,
+        default=True,
+        force=True,
     )
 
     raise SystemExit(0 if success else 1)

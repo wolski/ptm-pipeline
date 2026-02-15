@@ -110,13 +110,18 @@ def get_experiment_name(phospho_dea_dir: Path) -> str:
     """Extract experiment name from DEA folder name.
 
     E.g., DEA_20260109_WUphospho_SHP2_vsn → SHP2
+         DEA_20260113_WUcombined_STY_batch_vsn → STY_batch
     """
     name = phospho_dea_dir.name
-    # Remove prefix: DEA_YYYYMMDD_WUphospho_
     parts = name.split("_")
     if len(parts) >= 4:
-        # Join everything after WUphospho
-        idx = next((i for i, p in enumerate(parts) if "phospho" in p.lower()), -1)
-        if idx >= 0 and idx + 1 < len(parts):
-            return "_".join(parts[idx + 1:])
+        # Find the WU-prefixed part (WUphospho, WUcombined, etc.)
+        for keyword in ("phospho", "combined"):
+            idx = next((i for i, p in enumerate(parts) if keyword in p.lower()), -1)
+            if idx >= 0 and idx + 1 < len(parts):
+                suffix = "_".join(parts[idx + 1:])
+                # Strip trailing _vsn suffix
+                if suffix.endswith("_vsn"):
+                    suffix = suffix[:-4]
+                return suffix
     return "experiment"

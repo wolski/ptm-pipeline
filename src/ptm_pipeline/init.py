@@ -22,7 +22,6 @@ console = Console()
 
 def get_template_dir() -> Path:
     """Get path to template directory from package data."""
-    # Try installed package location first
     try:
         import sys
         if sys.prefix != sys.base_prefix:
@@ -95,6 +94,7 @@ def init_project(
     name: str | None = None,
     dry_run: bool = False,
     force: bool = False,
+    default: bool = False,
 ) -> bool:
     """Initialize PTM pipeline in project directory.
 
@@ -104,6 +104,7 @@ def init_project(
         name: Optional experiment name (auto-detected if not provided)
         dry_run: If True, only show what would be done
         force: If True, overwrite existing files
+        default: If True, use defaults for all prompts (non-interactive)
 
     Returns:
         True if initialization was successful
@@ -120,7 +121,7 @@ def init_project(
     config_file = project_dir / "ptm_config.yaml"
     snakefile = project_dir / "Snakefile"
 
-    if (config_file.exists() or snakefile.exists()) and not force:
+    if (config_file.exists() or snakefile.exists()) and not force and not default:
         console.print(
             "[yellow]Warning:[/yellow] Pipeline files already exist. "
             "Use --force to overwrite."
@@ -145,7 +146,7 @@ def init_project(
     phospho_dir = all_folders["phospho"][0]
     protein_dir = all_folders["protein"][0]
 
-    if len(all_folders["phospho"]) > 1:
+    if len(all_folders["phospho"]) > 1 and not default:
         console.print("\n[yellow]Multiple phospho DEA folders found:[/yellow]")
         for i, d in enumerate(all_folders["phospho"]):
             console.print(f"  {i + 1}. {d.name}")
@@ -156,7 +157,7 @@ def init_project(
         )
         phospho_dir = all_folders["phospho"][int(choice) - 1]
 
-    if len(all_folders["protein"]) > 1:
+    if len(all_folders["protein"]) > 1 and not default:
         console.print("\n[yellow]Multiple protein DEA folders found:[/yellow]")
         for i, d in enumerate(all_folders["protein"]):
             console.print(f"  {i + 1}. {d.name}")
@@ -204,18 +205,30 @@ def init_project(
             default_name = contrasts[0]
         else:
             default_name = get_experiment_name(phospho_dir)
-        console.print(f"\n[bold]Suggested experiment name:[/bold] {default_name}")
-        name = Prompt.ask("Experiment name", default=default_name)
+        if default:
+            name = default_name
+            console.print(f"\n[bold]Experiment name:[/bold] {name}")
+        else:
+            console.print(f"\n[bold]Suggested experiment name:[/bold] {default_name}")
+            name = Prompt.ask("Experiment name", default=default_name)
 
     # Get significance thresholds
-    console.print("\n[bold]Significance thresholds for downstream analyses:[/bold]")
-    fdr = float(Prompt.ask("FDR threshold", default="0.25"))
-    log2fc = float(Prompt.ask("log2FC threshold", default="0.5"))
+    if default:
+        fdr = 0.25
+        log2fc = 0.5
+    else:
+        console.print("\n[bold]Significance thresholds for downstream analyses:[/bold]")
+        fdr = float(Prompt.ask("FDR threshold", default="0.25"))
+        log2fc = float(Prompt.ask("log2FC threshold", default="0.5"))
 
     # Analysis options
-    console.print("\n[bold]Analysis options:[/bold]")
-    max_fig = int(Prompt.ask("Max n-to-c plots per analysis", default="10"))
-    run_kinase = Confirm.ask("Run kinase activity analysis?", default=True)
+    if default:
+        max_fig = 10
+        run_kinase = True
+    else:
+        console.print("\n[bold]Analysis options:[/bold]")
+        max_fig = int(Prompt.ask("Max n-to-c plots per analysis", default="10"))
+        run_kinase = Confirm.ask("Run kinase activity analysis?", default=True)
 
     # Generate config
     console.print("\n[bold]Generating configuration...[/bold]")
@@ -260,7 +273,6 @@ def init_project(
         console.print("[green]Pipeline initialized successfully![/green]")
         console.print("\nNext steps:")
         console.print(f"  1. Review ptm_config.yaml")
-        console.print(f"  2. Run: snakemake -s Snakefile --configfile ptm_config.yaml -n all  # dry-run")
-        console.print(f"  3. Run: snakemake -s Snakefile --configfile ptm_config.yaml -j1 all")
+        console.print(f"  2. Run: make all")
 
     return True

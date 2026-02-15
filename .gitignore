@@ -18,5 +18,7 @@ build/
 ~$*
 *.docx
 
-# Test data (real project data for development)
-test_data/
+# Test data: source datasets (large, not committed)
+test_data/*
+!test_data/create_test_*.py
+!test_data/subset_utils.py
