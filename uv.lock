@@ -416,7 +416,7 @@ wheels = [
 [[package]]
 name = "kinase-library"
 version = "1.0.0"
-source = { directory = "../kinase-library" }
+source = { git = "https://github.com/wolski/kinase-library#f668f282a62e1fe28722cb8e7303c76790e123e5" }
 dependencies = [
     { name = "adjusttext" },
     { name = "biopython" },
@@ -432,35 +432,6 @@ dependencies = [
     { name = "seaborn" },
     { name = "statsmodels" },
     { name = "tqdm" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "adjusttext" },
-    { name = "biopython" },
-    { name = "cyclopts" },
-    { name = "gseapy" },
-    { name = "matplotlib" },
-    { name = "myst-parser", marker = "extra == 'docs'" },
-    { name = "natsort" },
-    { name = "nbsphinx", marker = "extra == 'docs'" },
-    { name = "numpy" },
-    { name = "pandas", specifier = ">=2.0" },
-    { name = "pyarrow" },
-    { name = "scikit-learn" },
-    { name = "scipy" },
-    { name = "seaborn" },
-    { name = "sphinx-autodoc-typehints", marker = "extra == 'docs'" },
-    { name = "sphinx-rtd-theme", marker = "extra == 'docs'" },
-    { name = "statsmodels" },
-    { name = "tqdm" },
-]
-provides-extras = ["docs"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-cov" },
 ]
 
 [[package]]
@@ -926,7 +897,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "cyclopts", specifier = ">=3.0" },
-    { name = "kinase-library", directory = "../kinase-library" },
+    { name = "kinase-library", git = "https://github.com/wolski/kinase-library" },
     { name = "openpyxl", marker = "extra == 'dev'", specifier = ">=3.1" },
     { name = "pyarrow", marker = "extra == 'dev'", specifier = ">=14.0" },
     { name = "pyyaml", specifier = ">=6.0" },
