@@ -1,0 +1,44 @@
+name: PTM Pipeline CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-pipeline:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}-ci:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ptm-pipeline
+        run: |
+          uv venv /tmp/venv
+          VIRTUAL_ENV=/tmp/venv uv pip install .
+          echo "/tmp/venv/bin" >> $GITHUB_PATH
+
+      - name: Copy pipeline files to test directory
+        run: |
+          cp template/Snakefile test_data/PTM_example_FP_TMT/Snakefile
+          cp template/helpers.py test_data/PTM_example_FP_TMT/helpers.py
+          cp -r template/src test_data/PTM_example_FP_TMT/src
+
+      - name: Run Snakemake pipeline
+        working-directory: test_data/PTM_example_FP_TMT
+        run: |
+          snakemake -s Snakefile --configfile ptm_config.yaml -j1 all
+
+      - name: Verify outputs
+        working-directory: test_data/PTM_example_FP_TMT
+        run: |
+          test -f PTM_KO_vs_WT/PTM_results.xlsx
+          test -f PTM_KO_vs_WT/PTM_results.rds
+          test -d PTM_KO_vs_WT/PTM_DPA
+          test -d PTM_KO_vs_WT/PTM_DPU
+          test -d PTM_KO_vs_WT/PTM_CF_DPU
+          test -f PTM_KO_vs_WT/PTM_DPA/Analysis_n_to_c.html
+          test -f PTM_KO_vs_WT/PTM_DPA/Analysis_seqlogo.html
+          echo "All expected outputs verified."
