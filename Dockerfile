@@ -48,9 +48,11 @@ RUN R -e "remotes::install_github('fgcz/prolfqua', upgrade='never')"
 RUN R -e "remotes::install_github('prolfqua/prolfquapp', upgrade='never')"
 RUN R -e "remotes::install_github('prolfqua/prophosqua', upgrade='never')"
 
-# Python: install snakemake and kinase-library globally via uv
+# Python: install snakemake, kinase-library, and ptm-pipeline via uv
 RUN uv tool install snakemake
 RUN uv tool install "kinase-library @ git+https://github.com/wolski/kinase-library"
+RUN uv tool install "ptm-pipeline @ git+https://github.com/wolski/ptm-pipeline"
+# NOTE: CI overrides ptm-pipeline with the current checkout via uv tool install --force .
 
 # Set work directory
 WORKDIR /work
