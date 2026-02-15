@@ -55,27 +55,84 @@ def init(
 
 @app.command
 def init_default(
-    directory: Annotated[Path, cyclopts.Parameter(help="Directory containing DEA folders (also used as output)")] = Path("."),
+    input_dir: Annotated[Path, cyclopts.Parameter(help="Directory containing DEA folders")] = Path("."),
+    output_dir: Annotated[Path, cyclopts.Parameter(help="Output directory for pipeline files (created if needed, defaults to .)")] = Path("."),
 ):
     """Initialize PTM pipeline with all defaults (non-interactive).
 
-    Equivalent to: ptm-pipeline init DIRECTORY DIRECTORY --default --force
-    Useful for CI and integration tests.
+    Discovers DEA folders from INPUT_DIR, writes pipeline files to OUTPUT_DIR.
+    OUTPUT_DIR is created if it does not exist.
+
+    Examples:
+        ptm-pipeline init-default data/FP_TMT/ PTM_FP_TMT/
+        ptm-pipeline init-default .
     """
     from .init import init_project
 
-    if not directory.exists():
-        console.print(f"[red]Error:[/red] Directory does not exist: {directory}")
+    if not input_dir.exists():
+        console.print(f"[red]Error:[/red] Input directory does not exist: {input_dir}")
         raise SystemExit(1)
 
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     success = init_project(
-        project_dir=directory,
-        input_dir=directory,
+        project_dir=output_dir,
+        input_dir=input_dir,
         default=True,
         force=True,
     )
 
     raise SystemExit(0 if success else 1)
+
+
+@app.command
+def run(
+    directory: Annotated[Path, cyclopts.Parameter(help="Project directory containing ptm_config.yaml and Snakefile")] = Path("."),
+    *,
+    cores: Annotated[int, cyclopts.Parameter(name=["--cores", "-j"], help="Number of cores for Snakemake")] = 1,
+    dry_run: Annotated[bool, cyclopts.Parameter(name=["--dry-run", "-n"], help="Show what would be executed")] = False,
+    target: Annotated[str, cyclopts.Parameter(help="Snakemake target")] = "all",
+):
+    """Run the PTM analysis pipeline.
+
+    Executes Snakemake in the specified project directory.
+
+    Examples:
+        ptm-pipeline run data/PTM_FP_TMT/
+        ptm-pipeline run data/PTM_FP_TMT/ --dry-run
+        ptm-pipeline run data/PTM_FP_TMT/ -j4
+    """
+    import subprocess
+
+    directory = directory.resolve()
+
+    config_file = directory / "ptm_config.yaml"
+    snakefile = directory / "Snakefile"
+
+    if not config_file.exists():
+        console.print(f"[red]Error:[/red] No ptm_config.yaml found in {directory}")
+        console.print("Run 'ptm-pipeline init' or 'ptm-pipeline init-default' first.")
+        raise SystemExit(1)
+
+    if not snakefile.exists():
+        console.print(f"[red]Error:[/red] No Snakefile found in {directory}")
+        raise SystemExit(1)
+
+    cmd = [
+        "snakemake",
+        "-s", str(snakefile),
+        "--configfile", str(config_file),
+        f"-j{cores}",
+    ]
+    if dry_run:
+        cmd.append("-n")
+    cmd.append(target)
+
+    console.print(f"[bold]Running pipeline in:[/bold] {directory}")
+    console.print(f"[dim]$ {' '.join(cmd)}[/dim]\n")
+
+    result = subprocess.run(cmd, cwd=directory)
+    raise SystemExit(result.returncode)
 
 
 @app.command

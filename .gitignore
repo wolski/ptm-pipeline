@@ -22,3 +22,9 @@ build/
 test_data/*
 !test_data/create_test_*.py
 !test_data/subset_utils.py
+!test_data/Makefile
+
+# Tests: commit zips, ignore unzipped dirs and PTM_* output
+tests/data/*/
+!tests/data/*.zip
+!tests/Makefile

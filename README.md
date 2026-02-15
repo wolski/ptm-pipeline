@@ -5,10 +5,14 @@ Deploy phosphoproteomics PTM analysis pipeline to new projects.
 ## Installation
 
 ```bash
+# Install from GitHub
 uv tool install git+https://github.com/wolski/ptm-pipeline
 
-# Update to latest version
+# Update to latest version from GitHub
 uv tool upgrade ptm-pipeline
+
+# Install from a local checkout (after code changes, use --force --reinstall)
+uv tool install --force --reinstall /path/to/ptm-pipeline
 ```
 
 ## Usage
@@ -38,7 +42,9 @@ make                 # Run the pipeline (or: make all)
 
 | Command | Description |
 |---------|-------------|
-| `ptm-pipeline init [DIR] [--name NAME] [--dry-run] [--force]` | Initialize pipeline |
+| `ptm-pipeline init [INPUT_DIR] [OUTPUT_DIR] [--name NAME] [--dry-run] [--force] [--default]` | Initialize pipeline (interactive) |
+| `ptm-pipeline init-default [INPUT_DIR] [OUTPUT_DIR]` | Initialize with defaults (non-interactive, for CI) |
+| `ptm-pipeline run [DIR] [-j CORES] [--dry-run]` | Run the analysis pipeline |
 | `ptm-pipeline clean [DIR] [--dry-run] [--force]` | Remove pipeline files (keeps DEA data) |
 | `ptm-pipeline validate [DIR] [--quick]` | Check dependencies |
 | `ptm-pipeline update [DIR] [--dry-run]` | Update pipeline files |
@@ -67,7 +73,7 @@ o40XXX_NewProject/
 
 ## Requirements
 
-- Python 3.10+, Snakemake, uv
+- Python 3.11+, Snakemake, uv
 - R packages: tidyverse, readxl, writexl, arrow, prolfquapp, prophosqua, clusterProfiler, ggseqlogo
 
 ## Configuration
@@ -99,6 +105,26 @@ git clone https://github.com/wolski/ptm-pipeline
 cd ptm-pipeline
 uv sync
 uv run ptm-pipeline --help
+```
+
+### Running Test Examples
+
+Three test datasets are shipped as zips in `tests/data/`. To run them locally:
+
+```bash
+cd ptm-pipeline                          # repository root
+uv tool install --force --reinstall .    # install from local checkout
+
+make -C tests all      # unzip -> init -> run (all test pipelines)
+make -C tests clean    # remove unzipped dirs and PTM_* output
+```
+
+To regenerate the test data zips from full source datasets (requires source data in `test_data/`):
+
+```bash
+cd ptm-pipeline                          # repository root
+make -C test_data all                    # generate small subsets
+make -C test_data zip                    # zip into tests/data/*.zip
 ```
 
 ### Managing uv.lock
