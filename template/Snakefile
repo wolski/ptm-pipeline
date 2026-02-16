@@ -371,7 +371,7 @@ for _analysis in ANALYSIS_TYPES:
         shell:
             """
             mkdir -p """ + adir(_analysis) + """/logs
-            uv tool run --from {params.repo} scan-motifs {input:q} \
+            scan-motifs {input:q} \
                 --seq-col SequenceWindow \
                 --output {output:q} \
                 --kin-type {params.kin_type} \
@@ -401,7 +401,7 @@ for _analysis in ANALYSIS_TYPES:
         shell:
             """
             mkdir -p """ + adir(_analysis) + """/logs
-            uv tool run --from {params.repo} run-mea {input.rnk:q} \
+            run-mea {input.rnk:q} \
                 --seq-col SequenceWindow \
                 --rank-col statistic.site \
                 --output {output:q} \
