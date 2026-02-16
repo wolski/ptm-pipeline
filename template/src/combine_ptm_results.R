@@ -9,7 +9,8 @@
 #     output.xlsx output.rds
 
 suppressPackageStartupMessages({
-  library(tidyverse)
+  library(dplyr)
+  library(tidyr)
   library(readxl)
   library(writexl)
   library(arrow)

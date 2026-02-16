@@ -15,7 +15,7 @@
 
 set -euo pipefail
 
-IMAGE_VERSION="latest"
+IMAGE_VERSION="0.3.0"
 IMAGE_REPO="ghcr.io/wolski/ptm-pipeline-ci"
 
 usage() {
@@ -72,7 +72,9 @@ fi
 
 IMAGE="${IMAGE_REPO}:${IMAGE_VERSION}"
 
-if ! $DOCKER image inspect "$IMAGE" > /dev/null 2>&1; then
+if $DOCKER image inspect "$IMAGE" > /dev/null 2>&1; then
+    echo "Using local image $IMAGE"
+else
     echo "Image $IMAGE not found locally. Pulling..."
     $DOCKER pull "$IMAGE"
 fi
@@ -84,6 +86,7 @@ else
 fi
 
 $DOCKER run --rm $DOCKER_ARGS \
+    --user "$(id -u):$(id -g)" \
     --mount "type=bind,source=$(pwd),target=/work" \
     -w /work \
     "$IMAGE" \

@@ -76,13 +76,22 @@ o40XXX_NewProject/
 - Python 3.11+, Snakemake, uv
 - R packages: tidyverse, readxl, writexl, arrow, prolfquapp, prophosqua, clusterProfiler, ggseqlogo
 
-Alternatively, use `ptm-pipeline.sh` which runs everything inside Docker (pulls the image automatically):
+Alternatively, use `ptm-pipeline.sh` which runs everything inside Docker — no local R/Python setup needed.
+The image is pulled automatically on first use.
 
 ```bash
 ./ptm-pipeline.sh init-default DEA_data/ output/
 ./ptm-pipeline.sh run output/
 ./ptm-pipeline.sh run output/ --dry-run
+./ptm-pipeline.sh validate output/
 ```
+
+Options:
+
+| Flag | Description |
+|------|-------------|
+| `--image-version VERSION` | Image tag (default: `0.3.0`) |
+| `--image-repo REPO` | Image repository (default: `ghcr.io/wolski/ptm-pipeline-ci`) |
 
 ## Configuration
 

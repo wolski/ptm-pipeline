@@ -30,7 +30,7 @@ knitr::opts_chunk$set(
 suppressPackageStartupMessages({
   library(prolfquapp)
   library(prophosqua)
-  library(tidyverse)
+  library(dplyr)
 })
 
 if (file.exists("~/projects/prophosqua")) {
