@@ -248,6 +248,7 @@ for _analysis in ANALYSIS_TYPES:
         params:
             xlsx_file = f"{DIR_OUT}/PTM_results.xlsx",
             sheet = ANALYSIS_SHEETS[_analysis],
+            analysis_type = aupper(_analysis),
             fdr = FDR_THRESHOLD,
             fc = LOG2FC_THRESHOLD,
             rmd_output_dir = adir(_analysis),
