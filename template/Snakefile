@@ -222,12 +222,13 @@ for _analysis in ANALYSIS_TYPES:
             """
             mkdir -p """ + adir(_analysis) + """/logs
             Rscript -e "{params.rmd_finder}
-            rmarkdown::render(rmd_path, output_dir=getwd(), knit_root_dir=getwd(), intermediates_dir=getwd(),
+            rmarkdown::render(rmd_path, output_file='Analysis_n_to_c_{params.analysis_type}.html',
+                output_dir=getwd(), knit_root_dir=getwd(), intermediates_dir=getwd(),
                 output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
                 params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}',
                 analysis_type='{params.analysis_type}', output_dir='{params.output_dir_param}',
                 max_fig={params.max_fig}, fdr={params.fdr}, fc={params.fc}))" 2>&1 | tee {log:q}
-            mv Analysis_n_to_c.html {output.html:q}
+            mv Analysis_n_to_c_{params.analysis_type}.html {output.html:q}
             """
 
 # ============================================================
@@ -255,11 +256,12 @@ for _analysis in ANALYSIS_TYPES:
             """
             mkdir -p """ + adir(_analysis) + """/logs
             Rscript -e "{params.rmd_finder}
-            rmarkdown::render(rmd_path, output_dir=getwd(), knit_root_dir=getwd(), intermediates_dir=getwd(),
+            rmarkdown::render(rmd_path, output_file='Analysis_seqlogo_{params.analysis_type}.html',
+                output_dir=getwd(), knit_root_dir=getwd(), intermediates_dir=getwd(),
                 output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
                 params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}',
                 fdr={params.fdr}, fc={params.fc}))" 2>&1 | tee {log:q}
-            mv Analysis_seqlogo.html {output.html:q}
+            mv Analysis_seqlogo_{params.analysis_type}.html {output.html:q}
             """
 
 # ============================================================
@@ -317,13 +319,14 @@ for _analysis in ANALYSIS_TYPES:
             """
             mkdir -p """ + adir(_analysis) + """/logs """ + adir(_analysis) + """/PTMSEA
             Rscript -e "{params.rmd_finder}
-            rmarkdown::render(rmd_path, output_dir=getwd(), knit_root_dir=getwd(), intermediates_dir=getwd(),
+            rmarkdown::render(rmd_path, output_file='Analysis_PTMSEA_{params.analysis_type}.html',
+                output_dir=getwd(), knit_root_dir=getwd(), intermediates_dir=getwd(),
                 output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
                 params=list(xlsx_file='{params.xlsx_file}', sheet='{params.sheet}',
                 stat_column='{params.stat_column}', analysis_type='{params.analysis_type}',
                 output_dir='{params.output_dir_param}', ptmsigdb_file='{params.ptmsigdb_file}',
                 min_size={params.min_size}, max_size={params.max_size}, n_perm={params.n_perm}))" 2>&1 | tee {log:q}
-            mv Analysis_PTMSEA.html {output.html:q}
+            mv Analysis_PTMSEA_{params.analysis_type}.html {output.html:q}
             """
 
 # ============================================================
@@ -434,11 +437,12 @@ for _analysis in ANALYSIS_TYPES:
             """
             mkdir -p """ + adir(_analysis) + """/logs
             Rscript -e "{params.rmd_finder}
-            rmarkdown::render(rmd_path, output_dir=getwd(), knit_root_dir=getwd(), intermediates_dir=getwd(),
+            rmarkdown::render(rmd_path, output_file='Analysis_MEA_{params.analysis_type}.html',
+                output_dir=getwd(), knit_root_dir=getwd(), intermediates_dir=getwd(),
                 output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
                 params=list(kinaselib_dir='{params.kinaselib_dir}',
                 analysis_type='{params.analysis_type}'))" 2>&1 | tee {log:q}
-            mv Analysis_MEA.html {output.html:q}
+            mv Analysis_MEA_{params.analysis_type}.html {output.html:q}
             """
 
 # ============================================================
@@ -471,13 +475,14 @@ for _analysis in ANALYSIS_TYPES:
             """
             mkdir -p """ + adir(_analysis) + """/logs
             Rscript -e "{params.rmd_finder}
-            rmarkdown::render(rmd_path, output_dir=getwd(), knit_root_dir=getwd(), intermediates_dir=getwd(),
+            rmarkdown::render(rmd_path, output_file='Analysis_KinaseLib_{params.analysis_type}.html',
+                output_dir=getwd(), knit_root_dir=getwd(), intermediates_dir=getwd(),
                 output_format = bookdown::html_document2(toc=TRUE, toc_float=TRUE, code_folding='hide'),
                 params=list(xlsx_file='{params.xlsx_file}',
                 term2gene_file='{params.term2gene_file}',
                 analysis_type='{params.analysis_type}', output_dir='{params.output_dir_param}',
                 min_size={params.min_size}, max_size={params.max_size}, n_perm={params.n_perm}))" 2>&1 | tee {log:q}
-            mv Analysis_KinaseLibrary.html {output.html:q}
+            mv Analysis_KinaseLib_{params.analysis_type}.html {output.html:q}
             """
 
 # ============================================================

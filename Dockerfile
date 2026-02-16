@@ -35,6 +35,8 @@ ENV UV_TOOL_BIN_DIR=/usr/local/bin
 # Python: install snakemake, kinase-library, and ptm-pipeline via uv
 RUN uv tool install snakemake
 RUN uv tool install "kinase-library @ git+https://github.com/wolski/kinase-library"
+# Cache-bust ARG: pass --build-arg PTM_VERSION=<commit> to force re-install
+ARG PTM_VERSION=latest
 RUN uv tool install "ptm-pipeline @ git+https://github.com/wolski/ptm-pipeline"
 
 # Verify critical packages are loadable
