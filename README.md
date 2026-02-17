@@ -1,6 +1,6 @@
 # PTM Pipeline
 
-**[Documentation & Example Reports](https://wolski.github.io/ptm-pipeline)**
+**[Documentation & Example Reports](https://wolski.github.io/ptm-pipeline)** | [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18349420.svg)](https://doi.org/10.5281/zenodo.18349420)
 
 Deploy phosphoproteomics PTM analysis pipeline to new projects.
 
