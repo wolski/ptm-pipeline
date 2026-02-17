@@ -34,7 +34,7 @@ CONFIG = {
     "phospho_annot": "phospho_annot_ERK_RUX.tsv",
     "protein_annot": "prot_annot_ERK_RUX.tsv",
     "keep_contrasts": ["no_ERK_vs_ERK", "no_ERK_vs_ERK_at_NoRux"],
-    "n_phospho": 500,
+    "n_phospho": 1500,
 }
 
 if __name__ == "__main__":

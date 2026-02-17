@@ -34,7 +34,7 @@ CONFIG = {
     "phospho_annot": "dataset_with_contrasts.tsv",
     "protein_annot": "dataset_with_contrasts.tsv",
     "keep_contrasts": ["KO_vs_WT", "KO_vs_WT_at_Early"],
-    "n_phospho": 500,
+    "n_phospho": 1500,
 }
 
 if __name__ == "__main__":

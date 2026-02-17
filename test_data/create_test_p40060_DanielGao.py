@@ -34,7 +34,7 @@ CONFIG = {
     "phospho_annot": "combined_sty_dataset_with_batch.tsv",
     "protein_annot": "dataset_with_batch.tsv",
     "keep_contrasts": ["42C_vs_37C"],
-    "n_phospho": 500,
+    "n_phospho": 1500,
 }
 
 if __name__ == "__main__":

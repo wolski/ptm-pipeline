@@ -1,9 +1,12 @@
-name: Build CI Docker Image
+name: Build, Test & Push CI Docker Image
 
 on:
   push:
     branches: [main]
-    paths: [Dockerfile]
+    paths:
+      - Dockerfile
+      - 'template/**'
+      - 'src/ptm_pipeline/**'
     tags: ['docker-*']
   workflow_dispatch:
 
@@ -11,7 +14,7 @@ env:
   IMAGE: ghcr.io/${{ github.repository }}-ci
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -24,16 +27,19 @@ jobs:
           ver=$(grep '^version' pyproject.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
           echo "version=$ver" >> "$GITHUB_OUTPUT"
 
+      - name: Build Docker image
+        run: docker build -t ${{ env.IMAGE }}:${{ steps.version.outputs.version }} -t ${{ env.IMAGE }}:latest .
+
+      - name: Run integration tests
+        run: make -C tests docker-test IMAGE_REPO=${{ env.IMAGE }} IMAGE_VERSION=${{ steps.version.outputs.version }}
+
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.IMAGE }}:${{ steps.version.outputs.version }}
-            ${{ env.IMAGE }}:latest
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.IMAGE }}:${{ steps.version.outputs.version }}
+          docker push ${{ env.IMAGE }}:latest

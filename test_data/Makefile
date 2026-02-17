@@ -9,7 +9,9 @@ SCRIPTS = create_test_PTM_example_analysis_v2.py \
           create_test_p40060_DanielGao.py
 
 TESTS_DATA  := ../tests/data
-DATA_DIRS   := $(wildcard $(TESTS_DATA)/[!P]*)
+DATA_DIRS   := $(TESTS_DATA)/BGS_Spectronaut_DIA_example \
+               $(TESTS_DATA)/FP_LFQ_example \
+               $(TESTS_DATA)/FP_TMT_example
 ZIPS        := $(addsuffix .zip,$(DATA_DIRS))
 
 all: $(SCRIPTS)
@@ -25,4 +27,12 @@ $(TESTS_DATA)/%.zip: $(TESTS_DATA)/%
 	cd $(TESTS_DATA) && zip -r $*.zip $*
 	@echo "  Created $@"
 
-.PHONY: all zip $(SCRIPTS)
+help:
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all       Generate all test datasets (default)"
+	@echo "  zip       Zip test datasets into tests/data/*.zip"
+	@echo "  help      Show this help"
+
+.PHONY: all zip help $(SCRIPTS)
