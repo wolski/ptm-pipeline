@@ -32,3 +32,28 @@ jobs:
             echo "  output dir: $out OK"
           done
           echo "All outputs verified."
+
+      - name: Collect HTML reports
+        if: always()
+        run: |
+          mkdir -p _reports
+          for dir in tests/data/PTM_*/; do
+            name=$(basename "$dir")
+            out=$(grep '^dir_out:' "$dir/ptm_config.yaml" | awk '{print $2}')
+            if [ -d "$dir/$out" ]; then
+              mkdir -p "_reports/$name"
+              find "$dir/$out" -name '*.html' | while read -r f; do
+                rel=${f#"$dir/$out/"}
+                mkdir -p "_reports/$name/$(dirname "$rel")"
+                cp "$f" "_reports/$name/$rel"
+              done
+            fi
+          done
+
+      - name: Upload HTML reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ptm-pipeline-reports
+          path: _reports/
+          retention-days: 90
