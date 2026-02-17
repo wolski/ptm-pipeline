@@ -1,5 +1,7 @@
 # PTM Pipeline
 
+**[Documentation & Example Reports](https://wolski.github.io/ptm-pipeline)**
+
 Deploy phosphoproteomics PTM analysis pipeline to new projects.
 
 ## Installation
