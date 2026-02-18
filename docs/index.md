@@ -21,6 +21,12 @@ The pipeline implements three complementary statistical approaches for PTM analy
 
 Each analysis includes kinase activity inference via [Kinase Library](https://kinase-library.phosphosite.org/) (motif enrichment) and [PTM-SEA](https://doi.org/10.1074/mcp.TIR118.000943) (site-set enrichment).
 
+These analyses are implemented in [**prophosqua**](https://github.com/prolfqua/prophosqua) ([![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15845272.svg)](https://doi.org/10.5281/zenodo.15845272)), described in:
+
+> Wolski W, Dittmann A, Panse C, Kunz L, Grossmann J.
+> "Integrated Analysis of Post-Translational Modifications and Total Proteome: Methods for Distinguishing Abundance from Usage Changes."
+> *Methods in Molecular Biology*, 2025.
+
 ## Quick Start
 
 ```bash
