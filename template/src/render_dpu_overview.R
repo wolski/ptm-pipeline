@@ -50,8 +50,18 @@ drumm <- prolfquapp::make_DEA_config_R6(
   WORKUNITID = work_unit_id
 )
 
-# Copy template from prophosqua
-prophosqua::copy_phospho_integration()
+# Copy template from prophosqua without relying on package helper API names.
+integration_files <- c(
+  "application/_Overview_PhosphoAndIntegration_site.Rmd",
+  "application/bibliography2025.bib"
+)
+for (file in integration_files) {
+  src <- system.file(file, package = "prophosqua", mustWork = FALSE)
+  if (!nzchar(src) || !file.exists(src)) {
+    stop("prophosqua integration file not found: ", file, call. = FALSE)
+  }
+  file.copy(src, basename(file), overwrite = TRUE)
+}
 
 # Render the overview document
 message("Rendering DPU overview report...")
@@ -79,5 +89,6 @@ file.copy(
 # Clean up temporary files
 unlink("_Overview_PhosphoAndIntegration_site.Rmd")
 unlink("_Overview_PhosphoAndIntegration_site.html")
+unlink("bibliography2025.bib")
 
 message("DPU overview report saved to: ", output_file)
