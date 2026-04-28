@@ -128,7 +128,7 @@ ldata <- arrow::read_parquet(get_dea_parquet(params$phospho_dea_dir))
 list <- yaml::read_yaml(get_dea_yaml(params$phospho_dea_dir))
 config <- prolfqua::list_to_AnalysisConfiguration(list)
 ptm_data <- prolfqua::LFQData$new(ldata, config)
-cat("Loaded", nrow(ptm_data$data), "normalized PTM site abundance measurements\n")
+cat("Loaded", nrow(ptm_data$get_data()), "normalized PTM site abundance measurements\n")
 ```
 
 # Protein Normalization
@@ -138,31 +138,34 @@ cat("Loaded", nrow(ptm_data$data), "normalized PTM site abundance measurements\n
 Correct PTM abundances by subtracting protein abundances (on log scale this is equivalent to dividing).
 
 ```{r correctData}
-ptm_data$data <- dplyr::inner_join(
-  ptm_data$data, tot_d,
+ptm_data$set_data(dplyr::inner_join(
+  ptm_data$get_data(), tot_d,
   by = c("Name", "protein_Id"),
   suffix = c(".site", ".total")
-)
+))
 
-ptm_data$data <- ptm_data$data |>
-  dplyr::mutate(ptm_usage = normalized_abundance.site - normalized_abundance.total)
+ptm_data$set_data(ptm_data$get_data() |>
+  dplyr::mutate(ptm_usage = normalized_abundance.site - normalized_abundance.total))
 
-cat("Merged data contains", nrow(ptm_data$data), "measurements\n")
+cat("Merged data contains", nrow(ptm_data$get_data()), "measurements\n")
 ```
 
 ```{r correctDataWrite}
-ptm_data$config$table$set_response("ptm_usage")
-writer <- prolfqua::LFQDataWriter$new(ptm_data, prefix = "CorrectFirst_", format = "xlsx")
-writer$write_wide(res_dir)
+ptm_data$get_config()$set_response("ptm_usage")
+wide <- ptm_data$to_wide()
+wide_data <- prolfqua::separate_hierarchy(wide$data, ptm_data$get_config())
+writexl::write_xlsx(wide_data, file.path(res_dir, "CorrectFirst_intensities_wide.xlsx"))
+writexl::write_xlsx(wide$annotation, file.path(res_dir, "CorrectFirst_intensities_file_annotation.xlsx"))
 ```
 
 ## Visualize Corrected PTM Usage
 
 ```{r fig1densityCorrected, fig.cap="Density plot of the total proteome corrected PTM site abundances."}
-ptm_data$config$table$set_response("ptm_usage")
+ptm_data$get_config()$set_response("ptm_usage")
 pl <- ptm_data$get_Plotter()
-ptm_data$config$table$get_response()
-ptm_data$data["ptm_usage"] <- ptm_data$data["ptm_usage"] + 20
+ptm_data$get_config()$get_response()
+ptm_data$set_data(ptm_data$get_data() |>
+  dplyr::mutate(ptm_usage = ptm_usage + 20))
 pl$intensity_distribution_density()
 
 ```
