@@ -33,8 +33,10 @@ suppressPackageStartupMessages({
   library(dplyr)
 })
 
-if (file.exists("~/projects/prophosqua")) {
-  devtools::load_all("~/projects/prophosqua", quiet = TRUE)
+prophosqua_dev_paths <- c("../../prophosqua", "~/projects/prophosqua")
+prophosqua_dev_path <- prophosqua_dev_paths[file.exists(path.expand(prophosqua_dev_paths))][1]
+if (!is.na(prophosqua_dev_path)) {
+  devtools::load_all(path.expand(prophosqua_dev_path), quiet = TRUE)
 }
 ```
 

@@ -41,8 +41,8 @@ PTMSIGDB_DIR = _ptmsigdb.get("output_dir", "data/ptmsigdb")
 PTMSIGDB_FILE = f"{PTMSIGDB_DIR}/ptmsigdb_filtered_{PTMSIGDB_SOURCES.replace(',', '_')}_{PTMSIGDB_TRIM}mer.rds"
 
 # Development mode: use local prophosqua vignettes instead of installed package
-# Set prophosqua_dev_path in config (or remove to use installed package)
-PROPHOSQUA_DEV_PATH = config.get("prophosqua_dev_path", "~/projects/prophosqua")
+# Set prophosqua_dev_path in config to use a local checkout; empty uses installed package
+PROPHOSQUA_DEV_PATH = config.get("prophosqua_dev_path", "")
 
 # Build lookup dictionaries from config
 LOOKUPS = build_analysis_lookups(DIR_OUT, config["analyses"])
