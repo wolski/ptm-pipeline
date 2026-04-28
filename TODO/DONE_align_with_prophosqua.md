@@ -466,7 +466,7 @@ After each phase, verify:
 
 1. **Prophosqua package builds and passes checks:**
 ```bash
-cd ~/projects/prophosqua
+cd ../prophosqua
 R CMD build .
 R CMD check prophosqua_*.tar.gz
 ```

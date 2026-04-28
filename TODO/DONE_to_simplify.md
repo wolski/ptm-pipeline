@@ -218,18 +218,10 @@ The codebase shows good overall structure with shared utility files (`dea_utils.
 
 | Priority | Lines | Issue |
 |----------|-------|-------|
-| Low | 63-65 | Development devtools::load_all pattern repeated in multiple Rmds - could be a shared setup chunk |
 | Low | 119-137 | Overlap statistics calculation is verbose - could be a utility function |
 | Medium | 354-381 | GSEA plot loop nearly identical to Analysis_KinaseLibrary_GSEA.Rmd lines 336-362 |
 
 **Specific findings:**
-
-- Lines 63-65: This pattern appears in multiple Rmds:
-  ```r
-  if (file.exists("~/projects/prophosqua")) {
-    devtools::load_all("~/projects/prophosqua", quiet = TRUE)
-  }
-  ```
 
 - Lines 354-381: The GSEA example plots loop is nearly identical between Analysis_PTMSEA.Rmd and Analysis_KinaseLibrary_GSEA.Rmd. Could be a shared function.
 
