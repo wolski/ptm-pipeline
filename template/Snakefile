@@ -40,10 +40,6 @@ PTMSIGDB_TRIM = _ptmsigdb.get("trim_to", 15)
 PTMSIGDB_DIR = _ptmsigdb.get("output_dir", "data/ptmsigdb")
 PTMSIGDB_FILE = f"{PTMSIGDB_DIR}/ptmsigdb_filtered_{PTMSIGDB_SOURCES.replace(',', '_')}_{PTMSIGDB_TRIM}mer.rds"
 
-# Development mode: use local prophosqua vignettes instead of installed package
-# Set prophosqua_dev_path in config to use a local checkout; empty uses installed package
-PROPHOSQUA_DEV_PATH = config.get("prophosqua_dev_path", "")
-
 # Build lookup dictionaries from config
 LOOKUPS = build_analysis_lookups(DIR_OUT, config["analyses"])
 ANALYSIS_TYPES = LOOKUPS["types"]  # ["dpa", "dpu", "cf"]
@@ -199,7 +195,7 @@ rule combine_results:
 # Uses prophosqua::Analysis_n_to_c.Rmd vignette
 # ============================================================
 for _analysis in ANALYSIS_TYPES:
-    _rmd_finder = rmd_path_r_code("Analysis_n_to_c.Rmd", PROPHOSQUA_DEV_PATH)
+    _rmd_finder = rmd_path_r_code("Analysis_n_to_c.Rmd")
     rule:
         name: f"n_to_c_{_analysis}"
         input:
@@ -236,7 +232,7 @@ for _analysis in ANALYSIS_TYPES:
 # Uses prophosqua::Analysis_seqlogo.Rmd vignette
 # ============================================================
 for _analysis in ANALYSIS_TYPES:
-    _rmd_finder = rmd_path_r_code("Analysis_seqlogo.Rmd", PROPHOSQUA_DEV_PATH)
+    _rmd_finder = rmd_path_r_code("Analysis_seqlogo.Rmd")
     rule:
         name: f"seqlogo_{_analysis}"
         input:
@@ -293,7 +289,7 @@ rule prep_ptmsigdb:
 # Uses prophosqua::Analysis_PTMSEA.Rmd vignette
 # ============================================================
 for _analysis in ANALYSIS_TYPES:
-    _rmd_finder = rmd_path_r_code("Analysis_PTMSEA.Rmd", PROPHOSQUA_DEV_PATH)
+    _rmd_finder = rmd_path_r_code("Analysis_PTMSEA.Rmd")
     rule:
         name: f"ptmsea_{_analysis}"
         input:
@@ -420,7 +416,7 @@ for _analysis in ANALYSIS_TYPES:
 # Uses prophosqua::Analysis_MEA.Rmd vignette
 # ============================================================
 for _analysis in ANALYSIS_TYPES:
-    _rmd_finder = rmd_path_r_code("Analysis_MEA.Rmd", PROPHOSQUA_DEV_PATH)
+    _rmd_finder = rmd_path_r_code("Analysis_MEA.Rmd")
     rule:
         name: f"vis_mea_{_analysis}"
         input:
@@ -452,7 +448,7 @@ for _analysis in ANALYSIS_TYPES:
 # Uses combined PTM_results.xlsx with consistent column names
 # ============================================================
 for _analysis in ANALYSIS_TYPES:
-    _rmd_finder = rmd_path_r_code("Analysis_KinaseLibrary.Rmd", PROPHOSQUA_DEV_PATH)
+    _rmd_finder = rmd_path_r_code("Analysis_KinaseLibrary.Rmd")
     rule:
         name: f"analysis_kinaselib_{_analysis}"
         input:

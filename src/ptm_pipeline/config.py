@@ -15,17 +15,6 @@ def _make_relative_path(path: Path, base: Path) -> str:
         return os.path.relpath(path, base)
 
 
-def _default_prophosqua_dev_path(project_dir: Path | None) -> str:
-    """Return a local prophosqua checkout path when this pipeline is run in the monorepo."""
-    workspace_root = Path(__file__).resolve().parents[3]
-    prophosqua_dir = workspace_root / "prophosqua"
-    if not prophosqua_dir.exists():
-        return ""
-    if project_dir:
-        return _make_relative_path(prophosqua_dir, project_dir)
-    return str(prophosqua_dir)
-
-
 def generate_config(
     phospho_dir: Path,
     protein_dir: Path,
@@ -138,9 +127,6 @@ def generate_config(
             "keep_sources": ["KINASE-PSP"],
             "trim_to": 15,
         },
-
-        # Development: use vignettes from local prophosqua checkout when available
-        "prophosqua_dev_path": _default_prophosqua_dev_path(project_dir),
     }
 
 
@@ -150,11 +136,6 @@ def write_config(config: dict, output_path: Path) -> None:
         # Custom representer to avoid aliases
         yaml.Dumper.ignore_aliases = lambda *args: True
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-        # Remind about dev mode
-        f.write(
-            "\n# NOTE: prophosqua_dev_path is enabled (dev mode).\n"
-            "# Remove or comment out for production use with installed package.\n"
-        )
 
 
 def config_to_yaml_string(config: dict) -> str:
