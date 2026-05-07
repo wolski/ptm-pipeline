@@ -24,7 +24,7 @@ cd ~/Dropbox/DataAnalysis/o40XXX_NewProject
 # DEA folders should already exist from prolfquapp
 
 ptm-pipeline init    # Auto-detect DEA folders, generate config
-make                 # Run the pipeline (or: make all)
+make all             # Run the pipeline
 ```
 
 ### Makefile Targets
