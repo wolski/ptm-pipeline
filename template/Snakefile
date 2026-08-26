@@ -22,6 +22,7 @@ from helpers import (
     get_dea_yaml_path,
     get_parquet_path,
     get_prophosqua_file,
+    get_prophosqua_report,
     get_prophosqua_install_stamp,
     render_tmp_dir,
 )
@@ -86,7 +87,7 @@ PKG = get_prophosqua_install_stamp()
 
 def report_template(name):
     """Resolve one of the report templates prophosqua ships."""
-    return get_prophosqua_file(name)
+    return get_prophosqua_report(name)
 
 # Build lookup dictionaries from config
 LOOKUPS = build_analysis_lookups(DIR_OUT, config["analyses"])

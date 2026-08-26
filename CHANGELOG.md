@@ -23,6 +23,11 @@
   protein-level counterpart joined alongside, and the diagram says which steps compute data,
   which render HTML, and which of them run once per analysis type. The diagram is a mermaid
   fence, so it renders both on the Pages site and in the file view on GitHub.
+- Report templates are resolved by asking prophosqua where they are, rather than assuming
+  `inst/application`. The analysis reports are that package's vignettes and install into its
+  `doc/`; `helpers.py` gained `get_prophosqua_report()`, which calls the package's own
+  resolver so the rule lives in one place. The Docker image already installs prophosqua with
+  its vignettes built, so nothing about deployment changes.
 - The documentation site is built with MkDocs and Material instead of Jekyll, matching the
   FGCZ Python project layout: a root `mkdocs.yml` names the nav, `uv sync --only-group docs`
   installs the toolchain, and `pages.yml` deploys what `mkdocs build --strict` produces, so a

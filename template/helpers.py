@@ -42,6 +42,39 @@ def get_prophosqua_file(relpath: str) -> str:
     return path
 
 
+def get_prophosqua_report(name: str) -> str:
+    """Resolve one of prophosqua's report templates.
+
+    Where a template lives is the package's business, not the pipeline's: the
+    analysis reports are prophosqua's vignettes and install into its `doc/`,
+    while the templates that are not analyses (the index page) ship under
+    `inst/application`. Asking `prophosqua:::report_file()` keeps that rule
+    stated once, in the package, instead of copied here where it could drift.
+
+    Args:
+        name: Template file name, e.g. "Analysis_seqlogo.Rmd"
+
+    Returns:
+        Full path to the installed template
+
+    Raises:
+        ValueError: If the package cannot resolve it -- which is also what
+            happens when prophosqua was installed without its vignettes built.
+    """
+    cmd = [
+        'Rscript', '--vanilla', '-e',
+        f'cat(prophosqua:::report_file("{name}"))'
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    path = result.stdout.strip()
+    if not path or not os.path.exists(path):
+        raise ValueError(
+            f"prophosqua report template not found: {name}. "
+            f"{result.stderr.strip()}"
+        )
+    return path
+
+
 def get_prophosqua_install_stamp() -> str:
     """Resolve a file of the installed prophosqua that every reinstall rewrites.
 
