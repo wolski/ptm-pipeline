@@ -118,6 +118,14 @@ def generate_config(
             "mea": 4,
         },
 
+        # ptm3d 3D visualization (consumes the enrichment GSEAResult JSONs)
+        "ptm3d": {
+            "run": True,
+            "repo": "git+https://github.com/prolfqua/ptm3d",
+            # null: every protein with a significant site; set a number to cap.
+            "max_proteins": None,
+        },
+
         # PTMsigDB preprocessing
         "ptmsigdb": {
             "output_dir": "data/ptmsigdb",

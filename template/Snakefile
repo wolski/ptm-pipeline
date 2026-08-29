@@ -46,6 +46,12 @@ KL_PERMUTATIONS = config["kinaselib"]["permutations"]
 MEA_THREADS = config["threads"]["mea"]
 RUN_KINASE = config.get("run_kinase", True)
 
+# ptm3d 3D visualization (consumes the enrichment GSEAResult JSONs)
+_ptm3d = config.get("ptm3d", {})
+RUN_PTM3D = _ptm3d.get("run", True) and RUN_KINASE
+PTM3D_REPO = _ptm3d.get("repo", "git+https://github.com/prolfqua/ptm3d")
+PTM3D_MAX_PROTEINS = _ptm3d.get("max_proteins")
+
 # GSEA parameters (shared by PTM-SEA and KinaseLib GSEA)
 _gsea_cfg = config.get("gsea", {})
 GSEA_MIN_SIZE = _gsea_cfg.get("min_size", 10)
@@ -130,17 +136,19 @@ if RUN_KINASE:
         # anything was enriched, which is what lets them be declared here.
         + [
             f"{adir(a)}/PTMSEA/PTMSEA_{aupper(a)}_results.{ext}"
-            for a in ANALYSIS_TYPES for ext in ("xlsx", "rds")
+            for a in ANALYSIS_TYPES for ext in ("xlsx", "rds", "json")
         ]
         + [
             f"{adir(a)}/KinaseLib/KinaseLib_GSEA_{aupper(a)}.{ext}"
-            for a in ANALYSIS_TYPES for ext in ("xlsx", "rds")
+            for a in ANALYSIS_TYPES for ext in ("xlsx", "rds", "json")
         ]
         + [
             f"{adir(a)}/KinaseLib/MEA_{aupper(a)}_results.{ext}"
-            for a in ANALYSIS_TYPES for ext in ("xlsx", "rds")
+            for a in ANALYSIS_TYPES for ext in ("xlsx", "rds", "json")
         ]
     )
+if RUN_PTM3D:
+    DATA_TARGETS += [f"{adir(a)}/ptm3d/index.html" for a in ANALYSIS_TYPES]
 
 REPORT_TARGETS = (
     [
@@ -472,7 +480,8 @@ for _analysis in ANALYSIS_TYPES:
             ptmsigdb = PTMSIGDB_FILE
         output:
             xlsx = f"{adir(_analysis)}/PTMSEA/PTMSEA_{aupper(_analysis)}_results.xlsx",
-            rds = f"{adir(_analysis)}/PTMSEA/PTMSEA_{aupper(_analysis)}_results.rds"
+            rds = f"{adir(_analysis)}/PTMSEA/PTMSEA_{aupper(_analysis)}_results.rds",
+            json = f"{adir(_analysis)}/PTMSEA/PTMSEA_{aupper(_analysis)}_results.json"
         log:
             f"{adir(_analysis)}/logs/compute_ptmsea.log"
         params:
@@ -643,7 +652,8 @@ for _analysis in ANALYSIS_TYPES:
             mea_files = expand(f"{adir(_analysis)}/KinaseLib/mea_{{c}}.csv", c=CONTRASTS)
         output:
             xlsx = f"{adir(_analysis)}/KinaseLib/MEA_{aupper(_analysis)}_results.xlsx",
-            rds = f"{adir(_analysis)}/KinaseLib/MEA_{aupper(_analysis)}_results.rds"
+            rds = f"{adir(_analysis)}/KinaseLib/MEA_{aupper(_analysis)}_results.rds",
+            json = f"{adir(_analysis)}/KinaseLib/MEA_{aupper(_analysis)}_results.json"
         log:
             f"{adir(_analysis)}/logs/compute_mea.log"
         params:
@@ -703,7 +713,8 @@ for _analysis in ANALYSIS_TYPES:
             term2gene = f"{adir(_analysis)}/KinaseLib/term2gene.csv"
         output:
             xlsx = f"{adir(_analysis)}/KinaseLib/KinaseLib_GSEA_{aupper(_analysis)}.xlsx",
-            rds = f"{adir(_analysis)}/KinaseLib/KinaseLib_GSEA_{aupper(_analysis)}.rds"
+            rds = f"{adir(_analysis)}/KinaseLib/KinaseLib_GSEA_{aupper(_analysis)}.rds",
+            json = f"{adir(_analysis)}/KinaseLib/KinaseLib_GSEA_{aupper(_analysis)}.json"
         log:
             f"{adir(_analysis)}/logs/compute_kinaselib_gsea.log"
         params:
@@ -760,6 +771,45 @@ for _analysis in ANALYSIS_TYPES:
                 output_dir={params.output_dir:q} 2>&1 | tee {log:q}
             rm -rf {params.render_dir:q}
             """
+
+# ============================================================
+# ptm3d: 3D structure app with the GSEA category selector
+# (one rule per analysis type; consumes the enrichment JSONs)
+# ============================================================
+if RUN_PTM3D:
+    for _analysis in ANALYSIS_TYPES:
+        rule:
+            name: f"ptm3d_{_analysis}"
+            input:
+                xlsx = f"{DIR_OUT}/PTM_results.xlsx",
+                enrichment = [
+                    f"{adir(_analysis)}/PTMSEA/PTMSEA_{aupper(_analysis)}_results.json",
+                    f"{adir(_analysis)}/KinaseLib/KinaseLib_GSEA_{aupper(_analysis)}.json",
+                    f"{adir(_analysis)}/KinaseLib/MEA_{aupper(_analysis)}_results.json",
+                ]
+            output:
+                html = f"{adir(_analysis)}/ptm3d/index.html"
+            log:
+                f"{adir(_analysis)}/logs/ptm3d.log"
+            params:
+                repo = PTM3D_REPO,
+                sheet = ANALYSIS_SHEETS[_analysis],
+                output_dir = f"{adir(_analysis)}/ptm3d",
+                log_dir = adir(_analysis),
+                max_flag = (
+                    f"--max_proteins {PTM3D_MAX_PROTEINS}" if PTM3D_MAX_PROTEINS else ""
+                ),
+                enrichment_args = lambda wc, input: " ".join(input.enrichment)
+            shell:
+                """
+                mkdir -p {params.log_dir:q}/logs
+                uv tool run --from {params.repo} ptm3d \
+                    --input {input.xlsx:q} \
+                    --sheet {params.sheet:q} \
+                    --output_dir {params.output_dir:q} \
+                    --enrichment {params.enrichment_args} \
+                    --no-html {params.max_flag} 2>&1 | tee {log:q}
+                """
 
 # ============================================================
 # Top Index Page
@@ -832,6 +882,10 @@ rule kinaselib_all:
 rule vis_mea_all:
     input:
         expand("{d}/KinaseLib/Analysis_MEA.html", d=ANALYSIS_DIRS.values())
+
+rule ptm3d_all:
+    input:
+        [f"{adir(a)}/ptm3d/index.html" for a in ANALYSIS_TYPES] if RUN_PTM3D else []
 
 # ============================================================
 # Clean

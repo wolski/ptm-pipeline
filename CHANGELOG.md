@@ -1,5 +1,14 @@
 # ptm-pipeline 0.3.0
 
+- The pipeline now runs **ptm3d** per analysis type: a `ptm3d_{dpa,dpu,cf}` rule maps the
+  differential sites onto AlphaFold structures and builds the browser app with the GSEA
+  category selector, fed by the enrichment GSEAResult JSONs that the PTM-SEA, KinaseLib
+  GSEA, and MEA steps now also write (declared as `*.json` outputs alongside xlsx/rds;
+  requires current prophosqua). Output lands in `<analysis dir>/ptm3d/`; view it with
+  `ptm3d serve <dir>`. Configure via the new `ptm3d:` config section (`run`, `repo`,
+  `max_proteins` -- null processes every protein with a significant site); projects
+  without the section get these defaults, and `run_kinase: false` disables the step.
+
 - A project directory now holds no R code at all: `template/src/` is gone, and with it the
   seven scripts and report templates every project used to carry. Every rule calls
   `ptm.sh <command>` -- one wrapper from the installed prophosqua, which resolves the
