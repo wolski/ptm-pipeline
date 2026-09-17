@@ -3,7 +3,7 @@ name = "ptm-pipeline"
 version = "0.3.0"
 description = "Deploy phosphoproteomics PTM analysis pipeline to new projects"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = "MIT"
 authors = [
     { name = "Witold Wolski" }
@@ -12,6 +12,11 @@ dependencies = [
     "cyclopts>=3.0",
     "pyyaml>=6.0",
     "rich>=13.0",
+    "anndata>=0.12",
+    "mudata>=0.4.1",
+    "h5py>=3.12",
+    "numpy>=1.26",
+    "pandas>=2.0",
     "kinase-library @ git+https://github.com/wolski/kinase-library",
 ]
 
@@ -32,6 +37,7 @@ Repository = "https://github.com/wolski/ptm-pipeline"
 
 [project.scripts]
 ptm-pipeline = "ptm_pipeline.cli:main"
+ptm-kinase-mudata = "ptm_pipeline.mudata_kinase:main"
 
 [build-system]
 requires = ["hatchling"]

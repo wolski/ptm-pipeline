@@ -58,7 +58,7 @@ Before `ptm-pipeline init`:
 ```
 o40XXX_NewProject/
 ├── DEA_*_WUphospho_*/    # or DEA_*_WUcombined_*, DEA_*_*STY*
-│   └── Inputs_WU_*/
+│   └── Results_WU_*/AnnData.h5ad
 └── DEA_*_WUprot_*/       # or DEA_*_WUtotal_*
 ```
 
@@ -79,9 +79,30 @@ pipeline calls the same wrapper the same way. To change how an analysis behaves,
 it — an edit in a project directory would be discarded by the next
 `ptm-pipeline update`.
 
+## MuData workflow
+
+The input boundary reads `enriched_h5ad` and `total_h5ad` (prolfquapp schema 2.0.0), their stored sample design and contrasts, and the configured PTMsigDB reference. No separate annotation file is needed.
+
+```text
+paired DEA AnnData → PTM_inputs.h5mu → PTM_statistics.h5mu
+                                       ↓
+                  PTMSEA / KinaseInputs / KinaseAssignments /
+                         KinaseGSEA / MotifEnrichment / MEA
+                                       ↓
+                               PTM_results.h5mu
+                                       ↓
+                        HTML reports, ptm3d, index
+                                       ↓
+                          terminal Excel/RDS exports
+```
+
+Every intermediate above is `.h5mu`. `make data` stops at final MuData; `make reports` renders from it; `make all` also exports delivery files and archives. The original statistics, joins, rank order, and enrichment algorithms are retained. `run_kinase: false` disables enrichment and ptm3d.
+
+For an existing project, update the workflow and configure `enriched_h5ad` and `total_h5ad` to the two DEA artifacts. Optional `ptmsigdb.input_file` imports an existing RDS/GMT; otherwise the reference is downloaded during import. Install the current local prolfquapp, prophosqua, ptm-pipeline, and ptm3d versions together. Older container images do not contain this migration.
+
 ## Requirements
 
-- Python 3.11+, Snakemake, uv
+- Python 3.12+, Snakemake, uv
 - R packages: tidyverse, readxl, writexl, arrow, prolfquapp, prophosqua, clusterProfiler, ggseqlogo
 
 Alternatively, use `ptm-pipeline.sh` which runs everything inside Docker — no local R/Python setup needed.
@@ -107,7 +128,9 @@ The `ptm_config.yaml` file controls pipeline behavior. Key options:
 
 | Option | Description |
 |--------|-------------|
-| `fdr` | FDR threshold for significance (default: 0.05) |
+| `enriched_h5ad`, `total_h5ad` | Paired DEA AnnData files |
+| `ptmsigdb.input_file` | Optional reference imported into MuData once |
+| `fdr` | FDR threshold for significance (default: 0.25) |
 | `log2fc` | Log2 fold change threshold (default: 0.5) |
 | `max_fig` | Maximum figures per report (default: 10) |
 

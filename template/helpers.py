@@ -7,6 +7,17 @@ and constructing file paths used by the Snakemake pipeline.
 import glob
 import os
 import subprocess
+import shutil
+from functools import lru_cache
+
+
+def get_kinase_mudata_files() -> tuple[str, list[str]]:
+    """Resolve the installed adapter and the source files its calculations use."""
+    executable = shutil.which("ptm-kinase-mudata")
+    if executable is None:
+        raise ValueError("ptm-kinase-mudata is missing; install the current ptm-pipeline package")
+    result = subprocess.run([executable, "dependencies"], capture_output=True, text=True, check=True)
+    return executable, result.stdout.splitlines()
 
 
 def get_prophosqua_file(relpath: str) -> str:
@@ -42,6 +53,7 @@ def get_prophosqua_file(relpath: str) -> str:
     return path
 
 
+@lru_cache(maxsize=None)
 def get_prophosqua_report(name: str) -> str:
     """Resolve one of prophosqua's report templates.
 

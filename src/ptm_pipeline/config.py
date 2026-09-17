@@ -18,7 +18,8 @@ def _make_relative_path(path: Path, base: Path) -> str:
 def generate_config(
     phospho_dir: Path,
     protein_dir: Path,
-    annot_file: Path | None,
+    enriched_h5ad: Path | None,
+    total_h5ad: Path | None,
     contrasts: list[str],
     output_name: str | None = None,
     project_dir: Path | None = None,
@@ -32,7 +33,8 @@ def generate_config(
     Args:
         phospho_dir: Path to phospho DEA folder
         protein_dir: Path to protein DEA folder
-        annot_file: Path to annotation TSV/CSV file, or None if not discovered
+        enriched_h5ad: Site DEA AnnData artifact.
+        total_h5ad: Protein DEA AnnData artifact.
         contrasts: List of contrast names
         output_name: Optional name for output directory
         project_dir: Project root for making paths relative
@@ -50,14 +52,10 @@ def generate_config(
         phospho_path = str(phospho_dir)
         protein_path = str(protein_dir)
 
-    # annot_file is None when discovery could not find one; the key is written
-    # empty so it can be filled in by hand.
-    if annot_file is None:
-        annot_path = ""
-    elif project_dir:
-        annot_path = _make_relative_path(annot_file, project_dir)
-    else:
-        annot_path = str(annot_file)
+    def artifact_path(path: Path | None) -> str:
+        if path is None:
+            return ""
+        return _make_relative_path(path, project_dir) if project_dir else str(path)
 
     # Generate output directory name
     if output_name:
@@ -78,7 +76,8 @@ def generate_config(
         # DEA directories
         "phospho_dea_dir": phospho_path,
         "protein_dea_dir": protein_path,
-        "annot_file": annot_path,
+        "enriched_h5ad": artifact_path(enriched_h5ad),
+        "total_h5ad": artifact_path(total_h5ad),
 
         # Analysis types with their configurations
         "analyses": {
@@ -125,7 +124,7 @@ def generate_config(
             "mea": 4,
         },
 
-        # ptm3d 3D visualization (consumes the enrichment GSEAResult JSONs)
+        # ptm3d 3D visualization (reads final MuData and embedded enrichment)
         "ptm3d": {
             "run": True,
             "repo": "git+https://github.com/prolfqua/ptm3d",
@@ -135,7 +134,7 @@ def generate_config(
 
         # PTMsigDB preprocessing
         "ptmsigdb": {
-            "output_dir": "data/ptmsigdb",
+            "input_file": None,  # optional existing RDS/GMT, imported once
             "keep_sources": ["KINASE-PSP"],
             "trim_to": 15,
         },

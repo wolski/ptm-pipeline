@@ -52,84 +52,30 @@ than comparing two finished models.
 
 ```mermaid
 flowchart TB
-    subgraph up["prolfquapp DEA -- upstream, before this pipeline"]
-        SITE["phospho DEA<br/>site level"]
-        PROT["total-proteome DEA<br/>protein level"]
-    end
-
-    SITE --> DPADPU["compute_dpa_dpu"]
-    PROT --> DPADPU
-    SITE --> CFDEA["compute_cf_dea"]
-    PROT --> CFDEA
-
-    DPADPU --> XDPA["Result_DPA.xlsx"]
-    DPADPU --> XDPU["Result_DPU.xlsx"]
-    CFDEA --> XCF["CorrectFirst_PTM_usage_results.xlsx"]
-    DPADPU --> RDPA["report_dpa_dpu"]
-    DPADPU --> ROV["render_dpu_overview"]
-    CFDEA --> RCF["report_cf_dea"]
-
-    XDPA --> COMBINE["combine_results"]
-    XDPU --> COMBINE
-    XCF --> COMBINE
-    COMBINE --> PTMRES["PTM_results.xlsx<br/>sheets DPA, DPU, CF + abundances"]
-
-    SIGDB["prep_ptmsigdb<br/>once, shared"] --> PTMSEA
-
-    subgraph per["everything below runs three times: DPA, DPU, CorrectFirst"]
-        direction TB
-        PREPKL["prep_kinaselib"]
-        SCAN["scan_motifs<br/>kinase-library CLI"]
-        GSEA["compute_kinaselib_gsea"]
-        MEARUN["run_mea<br/>one job per contrast"]
-        MEACOL["compute_mea"]
-        PTMSEA["compute_ptmsea"]
-        NTOC["n_to_c"]
-        SEQ["seqlogo"]
-        RSEA["ptmsea report"]
-        RKL["analysis_kinaselib"]
-        RMEA["vis_mea"]
-        PREPKL --> SCAN
-        SCAN --> GSEA
-        PREPKL --> MEARUN
-        MEARUN --> MEACOL
-        PTMSEA --> RSEA
-        GSEA --> RKL
-        MEACOL --> RMEA
-    end
-
-    PTMRES --> PTMSEA
-    PTMRES --> PREPKL
-    PTMRES --> GSEA
-    PTMRES --> NTOC
-    PTMRES --> SEQ
-
-    RSEA --> INDEX["top_index"]
-    RKL --> INDEX
-    RMEA --> INDEX
-    NTOC --> INDEX
-    SEQ --> INDEX
-    RDPA --> INDEX
-    ROV --> INDEX
-    RCF --> INDEX
-    INDEX --> ZIP["zip"]
-
-    classDef compute fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
-    classDef report fill:#dcfce7,stroke:#22c55e,color:#14532d
-    classDef file fill:#fef3c7,stroke:#f59e0b,color:#78350f
-    classDef ext fill:#f3f4f6,stroke:#9ca3af,color:#374151
-    class DPADPU,CFDEA,COMBINE,PTMSEA,PREPKL,SCAN,GSEA,MEARUN,MEACOL,SIGDB compute
-    class RDPA,ROV,RCF,RSEA,RKL,RMEA,NTOC,SEQ,INDEX,ZIP report
-    class XDPA,XDPU,XCF,PTMRES file
-    class SITE,PROT ext
+    DEA["Paired DEA AnnData + references"] --> INPUT["PTM_inputs.h5mu"]
+    INPUT --> DPA["DPA / DPU"]
+    INPUT --> CF["CorrectFirst"]
+    DPA --> STATS["PTM_statistics.h5mu"]
+    CF --> STATS
+    STATS --> SEA["PTMSEA.h5mu"]
+    STATS --> PREP["KinaseInputs.h5mu"]
+    PREP --> ASSIGN["KinaseAssignments.h5mu"]
+    ASSIGN --> GSEA["KinaseGSEA.h5mu"]
+    ASSIGN --> MOTIF["MotifEnrichment.h5mu"]
+    MOTIF --> MEA["MEA.h5mu"]
+    SEA --> FINAL["PTM_results.h5mu"]
+    GSEA --> FINAL
+    MEA --> FINAL
+    STATS --> FINAL
+    FINAL --> REPORTS["All reports, ptm3d, index"]
+    REPORTS --> EXPORT["Terminal Excel / RDS exports"]
+    FINAL --> EXPORT
+    EXPORT --> ZIP["Archives"]
 ```
 
-Blue steps compute and write data; green steps render HTML. That split is what the two
-tier targets name: `snakemake -j1 data` stops after the blue ones, `snakemake -j1 reports`
-renders from what they wrote, so correcting a caption costs a render and not a reanalysis.
+Import reads both schema 2.0.0 DEA artifacts and their stored design and contrasts. All persisted analysis handoffs thereafter are MuData. The three enrichment branches run for DPA, DPU, and CorrectFirst. Reports and ptm3d read only final MuData, including its embedded enrichment documents; Excel/RDS exports run after reports.
 
-Every step runs through one wrapper shipped with prophosqua -- `ptm.sh <step>` -- which
-resolves the step's R code from the installed package. `./ptm.sh help` lists them.
+`snakemake -j1 data` builds final MuData. `snakemake -j1 reports` renders from it. `snakemake -j1 all` adds terminal delivery exports and archives. R commands run through the installed prophosqua `ptm.sh`; Python kinase calculations use `ptm-kinase-mudata`, installed with ptm-pipeline. Both declare their installed source dependencies.
 
 ## Quick Start
 

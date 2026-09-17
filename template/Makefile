@@ -17,6 +17,12 @@ PTM_PIPELINE_SRC := /Users/wolski/projects/ptm-pipeline/
 all: ## Run the full pipeline
 	snakemake -s $(SNAKEFILE) --configfile $(CONFIG) -j$(CORES) all
 
+data: ## Build final MuData with every enabled analysis
+	snakemake -s $(SNAKEFILE) --configfile $(CONFIG) -j$(CORES) data
+
+reports: ## Render reports from final MuData before delivery export
+	snakemake -s $(SNAKEFILE) --configfile $(CONFIG) -j$(CORES) reports
+
 dry-run: ## Show what would be executed (dry-run)
 	snakemake -s $(SNAKEFILE) --configfile $(CONFIG) -n all
 

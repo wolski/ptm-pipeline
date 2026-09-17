@@ -164,8 +164,7 @@ def update(
 ):
     """Update pipeline files to latest version.
 
-    Copies new versions of Snakefile, helpers.py, and src/ files
-    while preserving config.yaml.
+    Copies the workflow and wrapper while preserving ptm_config.yaml.
     """
     from .init import copy_template_files, get_template_dir
 
@@ -238,7 +237,7 @@ def info(
 
     Useful for debugging auto-discovery before running init.
     """
-    from .discover import find_all_dea_folders, find_annotation_file, parse_contrasts
+    from .discover import find_all_dea_folders, find_dea_anndata, read_dea_contrasts
     from rich.table import Table
 
     if not directory.exists():
@@ -261,12 +260,12 @@ def info(
     table = Table(title="Phospho DEA Folders")
     table.add_column("#", style="dim")
     table.add_column("Folder", style="green")
-    table.add_column("Annotation File")
+    table.add_column("AnnData artifact")
 
     for i, d in enumerate(folders["phospho"], 1):
-        annot = find_annotation_file(d)
-        annot_str = annot.name if annot else "[red]Not found[/red]"
-        table.add_row(str(i), d.name, annot_str)
+        artifact = find_dea_anndata(d)
+        artifact_str = str(artifact.relative_to(d)) if artifact else "[red]Not found[/red]"
+        table.add_row(str(i), d.name, artifact_str)
 
     if folders["phospho"]:
         console.print(table)
@@ -291,10 +290,10 @@ def info(
 
     # Show contrasts from first phospho folder
     if folders["phospho"]:
-        annot = find_annotation_file(folders["phospho"][0])
-        if annot:
-            contrasts = parse_contrasts(annot)
-            console.print(f"\n[bold]Contrasts from {annot.name}:[/bold]")
+        artifact = find_dea_anndata(folders["phospho"][0])
+        if artifact:
+            contrasts = read_dea_contrasts(artifact)
+            console.print(f"\n[bold]Contrasts from {artifact.name}:[/bold]")
             for c in contrasts:
                 console.print(f"  - {c}")
 

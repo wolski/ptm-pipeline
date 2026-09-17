@@ -1,5 +1,7 @@
 # ptm-pipeline 0.3.0
 
+- Import paired DEA AnnData once, then use MuData for every statistics, ranking, motif assignment, enrichment, and report input. Assemble the final container before reports and write Excel/RDS delivery files only after all reports finish. Discovery reads stored design/contrasts without a separate annotation file. Requires Python 3.12+, current prophosqua, prolfquapp, and ptm3d.
+
 - Discover CSV and TSV annotations with case-insensitive design columns, preserve an editable configuration when discovery is incomplete, and order MEA result generation after motif assignment.
 
 - The pipeline now runs **ptm3d** per analysis type: a `ptm3d_{dpa,dpu,cf}` rule maps the

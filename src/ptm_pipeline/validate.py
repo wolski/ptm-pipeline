@@ -23,7 +23,7 @@ class ValidationResult:
 
 def check_file_exists(path: Path, description: str) -> ValidationResult:
     """Check if a file exists."""
-    if path.exists():
+    if path.is_file():
         return ValidationResult(description, True, str(path))
     return ValidationResult(description, False, f"Not found: {path}")
 
@@ -94,24 +94,6 @@ def check_command_exists(command: str, description: str) -> ValidationResult:
     return ValidationResult(description, False, f"Command not found: {command}")
 
 
-def check_uv_tool(tool_spec: str) -> ValidationResult:
-    """Check if a uv tool can be accessed."""
-    try:
-        result = subprocess.run(
-            ["uv", "tool", "run", "--from", tool_spec, "--help"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        if result.returncode == 0:
-            return ValidationResult("kinase-library", True, "Accessible via uv")
-        return ValidationResult("kinase-library", False, "Failed to access")
-    except subprocess.TimeoutExpired:
-        return ValidationResult("kinase-library", False, "Timeout")
-    except FileNotFoundError:
-        return ValidationResult("kinase-library", False, "uv not found")
-
-
 def validate_project(project_dir: Path, quick: bool = False) -> bool:
     """Validate project setup for PTM pipeline.
 
@@ -149,16 +131,18 @@ def validate_project(project_dir: Path, quick: bool = False) -> bool:
     if config:
         phospho_dir = project_dir / config.get("phospho_dea_dir", "")
         protein_dir = project_dir / config.get("protein_dea_dir", "")
-        annot_file = project_dir / config.get("annot_file", "")
 
         results.append(check_dir_exists(phospho_dir, "Phospho DEA folder"))
         results.append(check_dir_exists(protein_dir, "Protein DEA folder"))
-        results.append(check_file_exists(annot_file, "Annotation file"))
+        results.append(check_file_exists(project_dir / config.get("enriched_h5ad", ""), "Enriched AnnData"))
+        results.append(check_file_exists(project_dir / config.get("total_h5ad", ""), "Total AnnData"))
 
     # Check commands
     results.append(check_command_exists("snakemake", "Snakemake"))
     results.append(check_command_exists("Rscript", "Rscript"))
     results.append(check_command_exists("uv", "uv"))
+    if config and config.get("run_kinase", True):
+        results.append(check_command_exists("ptm-kinase-mudata", "Kinase MuData adapter"))
 
     if not quick:
         # Check R packages (slow)
@@ -176,12 +160,6 @@ def validate_project(project_dir: Path, quick: bool = False) -> bool:
         for pkg in r_packages:
             results.append(check_r_package(pkg))
 
-        # Check kinase-library (slow)
-        console.print("[dim]Checking kinase-library access...[/dim]")
-        if config and "kinaselib" in config:
-            repo = config["kinaselib"].get("repo", "git+https://github.com/wolski/kinase-library")
-            results.append(check_uv_tool(repo))
-
     # Display results
     table = Table(title="Validation Results")
     table.add_column("Check", style="cyan")
@@ -192,7 +170,7 @@ def validate_project(project_dir: Path, quick: bool = False) -> bool:
     for r in results:
         status = "[green]PASS[/green]" if r.passed else "[red]FAIL[/red]"
         table.add_row(r.name, status, r.message)
-        if not r.passed and r.name in ["ptm_config.yaml", "Snakefile", "Phospho DEA folder", "Protein DEA folder"]:
+        if not r.passed and r.name in ["ptm_config.yaml", "Snakefile", "Phospho DEA folder", "Protein DEA folder", "Enriched AnnData", "Total AnnData"]:
             critical_failed = True
 
     console.print(table)

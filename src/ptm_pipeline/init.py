@@ -11,10 +11,8 @@ from rich.table import Table
 
 from .discover import (
     find_all_dea_folders,
-    ANNOTATION_NAME_PATTERNS,
-    ANNOTATION_SUFFIXES,
-    find_annotation_file,
-    parse_contrasts,
+    find_dea_anndata,
+    read_dea_contrasts,
     get_experiment_name,
 )
 from .config import generate_config, write_config, config_to_yaml_string
@@ -256,41 +254,23 @@ def init_project(
     table.add_row("Protein", protein_dir.name)
     console.print(table)
 
-    # Find annotation file
-    console.print("\n[bold]Looking for annotation file...[/bold]")
-    annot_file = find_annotation_file(phospho_dir)
-
-    # Keys discovery could not fill. The config is written either way, with
-    # these left blank, so they can be set by hand instead of the run stopping
-    # with nothing on disk to edit.
+    console.print("\n[bold]Reading DEA AnnData artifacts...[/bold]")
+    enriched_h5ad = find_dea_anndata(phospho_dir)
+    total_h5ad = find_dea_anndata(protein_dir)
     unresolved: list[str] = []
-
-    if not annot_file:
-        expected = ", ".join(
-            f"Inputs_*/{name}{suffix}"
-            for name in ANNOTATION_NAME_PATTERNS
-            for suffix in ANNOTATION_SUFFIXES
-        )
-        console.print("[red]Error:[/red] No annotation file found in phospho DEA folder")
-        console.print(f"  Expected: {expected}")
-        for inputs_dir in sorted(phospho_dir.glob("Inputs_*")):
-            names = sorted(p.name for p in inputs_dir.iterdir() if p.is_file())
-            console.print(f"  {inputs_dir.name}/ contains: {', '.join(names) or '(empty)'}")
-        unresolved.append("annot_file")
-    else:
-        console.print(f"  Found: {annot_file.relative_to(input_dir)}")
-
-    # Parse contrasts
-    console.print("\n[bold]Parsing contrasts...[/bold]")
-    contrasts = parse_contrasts(annot_file) if annot_file else []
-
+    for key, artifact in (("enriched_h5ad", enriched_h5ad), ("total_h5ad", total_h5ad)):
+        if artifact is None:
+            console.print(f"[red]Missing {key}: Results_WU_*/AnnData.h5ad[/red]")
+            unresolved.append(key)
+        else:
+            console.print(f"  {key}: {artifact.relative_to(input_dir)}")
+    contrasts = read_dea_contrasts(enriched_h5ad) if enriched_h5ad else []
     if not contrasts:
-        console.print("[yellow]Warning:[/yellow] No contrasts found in annotation file")
         unresolved.append("contrasts")
-    else:
-        console.print(f"  Found {len(contrasts)} contrast(s):")
-        for c in contrasts:
-            console.print(f"    - {c}")
+    elif total_h5ad and contrasts != read_dea_contrasts(total_h5ad):
+        raise ValueError("Enriched and total DEA artifacts have different contrasts")
+    for contrast in contrasts:
+        console.print(f"    - {contrast}")
 
     # Get experiment name - suggest first contrast as default
     if not name:
@@ -325,7 +305,8 @@ def init_project(
     config = generate_config(
         phospho_dir=phospho_dir,
         protein_dir=protein_dir,
-        annot_file=annot_file,
+        enriched_h5ad=enriched_h5ad,
+        total_h5ad=total_h5ad,
         contrasts=contrasts,
         output_name=name,
         project_dir=project_dir,
