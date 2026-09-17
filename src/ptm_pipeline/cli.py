@@ -164,9 +164,12 @@ def update(
 ):
     """Update pipeline files to latest version.
 
-    Copies the workflow and wrapper while preserving ptm_config.yaml.
+    Copies the workflow and wrapper, preserving settings and adding MuData input paths.
     """
     from .init import copy_template_files, get_template_dir
+    from .config import _make_relative_path, write_config
+    from .discover import find_dea_anndata
+    import yaml
 
     if not directory.exists():
         console.print(f"[red]Error:[/red] Directory does not exist: {directory}")
@@ -189,7 +192,23 @@ def update(
         console.print(f"[red]Error:[/red] {e}")
         raise SystemExit(1)
 
+    configuration = yaml.safe_load(config_file.read_text())
+    additions = {}
+    for key, dea_key in (("enriched_h5ad", "phospho_dea_dir"), ("total_h5ad", "protein_dea_dir")):
+        if key in configuration:
+            continue
+        dea_dir = directory / configuration[dea_key]
+        artifact = find_dea_anndata(dea_dir)
+        if artifact is None:
+            console.print(f"[red]Error:[/red] No Results_WU_*/AnnData.h5ad in {dea_dir}. Set {key} first.")
+            raise SystemExit(1)
+        additions[key] = _make_relative_path(artifact, directory)
+
     copied = copy_template_files(directory, dry_run=dry_run)
+    for key, value in additions.items():
+        console.print(f"  {'Would add' if dry_run else 'Added'}: {key}: {value}")
+    if additions and not dry_run:
+        write_config(configuration | additions, config_file)
 
     action = "Would update" if dry_run else "Updated"
     for f in copied:
@@ -199,7 +218,7 @@ def update(
         console.print("\n[yellow]Dry run complete.[/yellow] No files were modified.")
     else:
         console.print(f"\n[green]Updated {len(copied)} files.[/green]")
-        console.print("  ptm_config.yaml was preserved.")
+        console.print("  Existing ptm_config.yaml settings were preserved.")
 
 
 @app.command
