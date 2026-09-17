@@ -224,7 +224,7 @@ rule zip:
     output: results=f"{DIR_OUT}.zip", phospho=DEA_ARCHIVES["phospho"], protein=DEA_ARCHIVES["protein"]
     params: folder=DIR_OUT, phospho=config["phospho_dea_dir"], protein=config["protein_dea_dir"]
     shell:
-        "zip -r {output.results:q} {params.folder:q} -x '*/logs/*' -x '*.render/*' && "
+        "zip -r {output.results:q} {params.folder:q} -x '*/logs/*' -x '*.render/*' -x '*/.h5mu-*' && "
         "zip -r {output.phospho:q} {params.phospho:q} && zip -r {output.protein:q} {params.protein:q}"
 
 rule dea:
