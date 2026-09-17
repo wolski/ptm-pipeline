@@ -18,7 +18,7 @@ def _make_relative_path(path: Path, base: Path) -> str:
 def generate_config(
     phospho_dir: Path,
     protein_dir: Path,
-    annot_file: Path,
+    annot_file: Path | None,
     contrasts: list[str],
     output_name: str | None = None,
     project_dir: Path | None = None,
@@ -32,7 +32,7 @@ def generate_config(
     Args:
         phospho_dir: Path to phospho DEA folder
         protein_dir: Path to protein DEA folder
-        annot_file: Path to annotation TSV file
+        annot_file: Path to annotation TSV/CSV file, or None if not discovered
         contrasts: List of contrast names
         output_name: Optional name for output directory
         project_dir: Project root for making paths relative
@@ -46,10 +46,17 @@ def generate_config(
     if project_dir:
         phospho_path = _make_relative_path(phospho_dir, project_dir)
         protein_path = _make_relative_path(protein_dir, project_dir)
-        annot_path = _make_relative_path(annot_file, project_dir)
     else:
         phospho_path = str(phospho_dir)
         protein_path = str(protein_dir)
+
+    # annot_file is None when discovery could not find one; the key is written
+    # empty so it can be filled in by hand.
+    if annot_file is None:
+        annot_path = ""
+    elif project_dir:
+        annot_path = _make_relative_path(annot_file, project_dir)
+    else:
         annot_path = str(annot_file)
 
     # Generate output directory name

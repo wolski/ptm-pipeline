@@ -649,7 +649,11 @@ for _analysis in ANALYSIS_TYPES:
             wrapper = PTM,
             script = CMD["mea"],
             prophosqua = PKG,
-            mea_files = expand(f"{adir(_analysis)}/KinaseLib/mea_{{c}}.csv", c=CONTRASTS)
+            mea_files = expand(f"{adir(_analysis)}/KinaseLib/mea_{{c}}.csv", c=CONTRASTS),
+            # CMD_MEA.R reads term2gene.csv when writing the .json. Without it
+            # declared, nothing orders scan_motifs before this rule and a
+            # parallel run races it.
+            term2gene = f"{adir(_analysis)}/KinaseLib/term2gene.csv"
         output:
             xlsx = f"{adir(_analysis)}/KinaseLib/MEA_{aupper(_analysis)}_results.xlsx",
             rds = f"{adir(_analysis)}/KinaseLib/MEA_{aupper(_analysis)}_results.rds",

@@ -1,5 +1,7 @@
 # ptm-pipeline 0.3.0
 
+- Discover CSV and TSV annotations with case-insensitive design columns, preserve an editable configuration when discovery is incomplete, and order MEA result generation after motif assignment.
+
 - The pipeline now runs **ptm3d** per analysis type: a `ptm3d_{dpa,dpu,cf}` rule maps the
   differential sites onto AlphaFold structures and builds the browser app with the GSEA
   category selector, fed by the enrichment GSEAResult JSONs that the PTM-SEA, KinaseLib

@@ -11,6 +11,8 @@ from rich.table import Table
 
 from .discover import (
     find_all_dea_folders,
+    ANNOTATION_NAME_PATTERNS,
+    ANNOTATION_SUFFIXES,
     find_annotation_file,
     parse_contrasts,
     get_experiment_name,
@@ -258,20 +260,33 @@ def init_project(
     console.print("\n[bold]Looking for annotation file...[/bold]")
     annot_file = find_annotation_file(phospho_dir)
 
-    if not annot_file:
-        console.print("[red]Error:[/red] No annotation file found in phospho DEA folder")
-        console.print("  Expected: Inputs_*/*_annot_*.tsv or Inputs_*/*_dataset*.tsv")
-        return False
+    # Keys discovery could not fill. The config is written either way, with
+    # these left blank, so they can be set by hand instead of the run stopping
+    # with nothing on disk to edit.
+    unresolved: list[str] = []
 
-    console.print(f"  Found: {annot_file.relative_to(input_dir)}")
+    if not annot_file:
+        expected = ", ".join(
+            f"Inputs_*/{name}{suffix}"
+            for name in ANNOTATION_NAME_PATTERNS
+            for suffix in ANNOTATION_SUFFIXES
+        )
+        console.print("[red]Error:[/red] No annotation file found in phospho DEA folder")
+        console.print(f"  Expected: {expected}")
+        for inputs_dir in sorted(phospho_dir.glob("Inputs_*")):
+            names = sorted(p.name for p in inputs_dir.iterdir() if p.is_file())
+            console.print(f"  {inputs_dir.name}/ contains: {', '.join(names) or '(empty)'}")
+        unresolved.append("annot_file")
+    else:
+        console.print(f"  Found: {annot_file.relative_to(input_dir)}")
 
     # Parse contrasts
     console.print("\n[bold]Parsing contrasts...[/bold]")
-    contrasts = parse_contrasts(annot_file)
+    contrasts = parse_contrasts(annot_file) if annot_file else []
 
     if not contrasts:
         console.print("[yellow]Warning:[/yellow] No contrasts found in annotation file")
-        contrasts = ["contrast1"]  # Placeholder
+        unresolved.append("contrasts")
     else:
         console.print(f"  Found {len(contrasts)} contrast(s):")
         for c in contrasts:
@@ -279,10 +294,7 @@ def init_project(
 
     # Get experiment name - suggest first contrast as default
     if not name:
-        if contrasts and contrasts[0] != "contrast1":
-            default_name = contrasts[0]
-        else:
-            default_name = get_experiment_name(phospho_dir)
+        default_name = contrasts[0] if contrasts else get_experiment_name(phospho_dir)
         if default:
             name = default_name
             console.print(f"\n[bold]Experiment name:[/bold] {name}")
@@ -347,6 +359,13 @@ def init_project(
     console.print("\n" + "=" * 60)
     if dry_run:
         console.print("[yellow]Dry run complete.[/yellow] No files were modified.")
+    elif unresolved:
+        console.print("[yellow]Pipeline initialized, but incomplete.[/yellow]")
+        console.print(
+            f"\nDiscovery could not fill: {', '.join(unresolved)}"
+            f"\nSet them by hand in {config_file}, then run: make all"
+        )
+        return False
     else:
         console.print("[green]Pipeline initialized successfully![/green]")
         console.print("\nNext steps:")

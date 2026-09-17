@@ -28,29 +28,29 @@ def find_all_dea_folders(project_dir: Path) -> dict[str, list[Path]]:
     return {"phospho": phospho_dirs, "protein": protein_dirs}
 
 
+ANNOTATION_NAME_PATTERNS = ("*annot*", "*dataset*")
+ANNOTATION_SUFFIXES = (".tsv", ".csv")
+
+
 def find_annotation_file(phospho_dea_dir: Path) -> Path | None:
     """Find annotation file inside phospho DEA folder.
 
-    Looks in Inputs_*/ subdirectory for:
-    - *_annot_*.tsv (standard prolfqua format)
-    - *_dataset*.tsv (alternative format with Group/Control columns)
+    Looks in Inputs_*/ subdirectory for a name containing "annot" (standard
+    prolfqua format) or "dataset" (alternative format with Group/Control
+    columns), as .tsv or .csv. prolfquapp copies whatever the DEA was given
+    under its original name, so the match is on the substring rather than on
+    a fixed "_annot_" spelling.
     """
     inputs_dirs = list(phospho_dea_dir.glob("Inputs_*"))
     if not inputs_dirs:
         return None
 
     for inputs_dir in inputs_dirs:
-        # Try standard annotation file first
-        annot_files = list(inputs_dir.glob("*_annot_*.tsv"))
-        if annot_files:
-            return annot_files[0]
-
-        # Try dataset file (alternative format)
-        dataset_files = list(inputs_dir.glob("*_dataset*.tsv"))
-        if not dataset_files:
-            dataset_files = list(inputs_dir.glob("dataset*.tsv"))
-        if dataset_files:
-            return dataset_files[0]
+        for name_pattern in ANNOTATION_NAME_PATTERNS:
+            for suffix in ANNOTATION_SUFFIXES:
+                matches = sorted(inputs_dir.glob(name_pattern + suffix))
+                if matches:
+                    return matches[0]
 
     return None
 
@@ -66,32 +66,39 @@ def parse_contrasts(annot_file: Path) -> list[str]:
     """
     contrasts = set()
 
+    delimiter = "," if annot_file.suffix.lower() == ".csv" else "\t"
+
     with open(annot_file, newline="") as f:
-        reader = csv.DictReader(f, delimiter="\t")
+        reader = csv.DictReader(f, delimiter=delimiter)
         rows = list(reader)
 
         if not rows:
             return []
 
-        # Check which format we have
+        # Column names are matched case-insensitively: prolfquapp writes CONTROL
+        # (run_contrasts_single) while hand-written annotations use Control.
         first_row = rows[0]
+        by_lower = {name.lower(): name for name in first_row if name}
+        contrast_col = by_lower.get("contrastname")
+        group_col = by_lower.get("group")
+        control_col = by_lower.get("control")
 
-        if "ContrastName" in first_row:
+        if contrast_col:
             # Standard format with explicit contrast names
             for row in rows:
-                contrast_name = row.get("ContrastName", "").strip()
+                contrast_name = (row.get(contrast_col) or "").strip()
                 if contrast_name and contrast_name.upper() != "NA":
                     contrasts.add(contrast_name)
 
-        elif "Group" in first_row and "Control" in first_row:
+        elif group_col and control_col:
             # Dataset format: derive contrast from Group/Control
             # Control='C' means control group, Control='T' means treatment
             control_groups = set()
             treatment_groups = set()
 
             for row in rows:
-                group = row.get("Group", "").strip()
-                control_flag = row.get("Control", "").strip().upper()
+                group = (row.get(group_col) or "").strip()
+                control_flag = (row.get(control_col) or "").strip().upper()
 
                 if control_flag == "C":
                     control_groups.add(group)
