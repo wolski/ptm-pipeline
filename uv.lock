@@ -540,7 +540,7 @@ wheels = [
 [[package]]
 name = "kinase-library"
 version = "1.0.0"
-source = { git = "https://github.com/wolski/kinase-library#f668f282a62e1fe28722cb8e7303c76790e123e5" }
+source = { git = "https://github.com/wolski/kinase-library#014beda0bdafdb0d9f79beb7e44e12218dd96035" }
 dependencies = [
     { name = "adjusttext" },
     { name = "biopython" },
