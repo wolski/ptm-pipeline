@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # R packages (delta — only what prolfquapp doesn't have)
 # Install clusterProfiler and other deps first (prophosqua vignettes need them)
 RUN R -e "pak::pkg_install(c( \
+    'bioc::anndataR', 'bioc::rhdf5', \
     'bioc::clusterProfiler', 'bioc::fgsea', 'bioc::enrichplot', \
     'any::ggseqlogo', 'any::patchwork', 'any::DT', 'any::here', 'any::rmarkdown' \
 ))"
