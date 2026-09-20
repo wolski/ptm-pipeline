@@ -21,12 +21,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN R -e "pak::pkg_install(c( \
     'bioc::anndataR', 'bioc::rhdf5', \
     'bioc::clusterProfiler', 'bioc::fgsea', 'bioc::enrichplot', \
-    'any::ggseqlogo', 'any::patchwork', 'any::DT', 'any::here', 'any::rmarkdown' \
+    'any::ggseqlogo', 'any::patchwork', 'any::DT', 'any::here', 'any::rmarkdown', \
+    'github::fgcz/fgczQuartoTemplate@dbeb852bc14f4374d59ff8b94350faf84f4513e1', \
+    'github::fgcz/prolfqua', 'github::prolfqua/prolfquapp', \
+    'github::prolfqua/protsea' \
 ))"
 
 # prophosqua: build_vignettes so Rmd files are available via system.file('doc', ...)
 RUN R -e "install.packages('remotes')" \
- && R -e "remotes::install_github('prolfqua/prophosqua', build_vignettes=TRUE, upgrade='never')"
+ && R -e "remotes::install_github('prolfqua/prophosqua', dependencies=FALSE, build_vignettes=TRUE, upgrade='never')"
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/

@@ -1,7 +1,6 @@
 # ptm-pipeline 0.3.0
 
-- Install the AnnData and HDF5 R dependencies before building prophosqua in
-  the pipeline image, so current prophosqua releases build with vignettes.
+- Install the current MuData, report-template, and enrichment R dependencies before building prophosqua in the pipeline image, then build prophosqua without asking `remotes` to reinterpret the installed Bioconductor metadata.
 - Preserve the native kinase-library MEA result as the same portable GSEA JSON
   used by the R enrichment methods, including ranked values, substrate sets,
   parameters, leading edges, source running scores, and hit positions.
