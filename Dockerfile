@@ -35,6 +35,7 @@ RUN R -e "install.packages('remotes')" \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 ENV UV_TOOL_DIR=/opt/uv-tools
 ENV UV_TOOL_BIN_DIR=/usr/local/bin
+ENV UV_PYTHON=3.12
 
 # Python: install snakemake, kinase-library, and ptm-pipeline via uv
 RUN uv tool install snakemake
