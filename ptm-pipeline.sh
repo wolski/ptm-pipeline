@@ -64,10 +64,13 @@ done
 
 CONTAINER_ARGS=("$@")
 
-if command -v podman > /dev/null 2>&1; then
+if command -v docker > /dev/null 2>&1; then
+    DOCKER="docker"
+elif command -v podman > /dev/null 2>&1; then
     DOCKER="podman"
 else
-    DOCKER="docker"
+    echo "Neither docker nor podman is available." >&2
+    exit 1
 fi
 
 IMAGE="${IMAGE_REPO}:${IMAGE_VERSION}"
