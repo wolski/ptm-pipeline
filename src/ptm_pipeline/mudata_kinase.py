@@ -1,6 +1,7 @@
 """Run the existing kinase-library calculations using only MuData handoffs."""
 
 import importlib.metadata
+import json
 import os
 import shutil
 import tempfile
@@ -67,12 +68,15 @@ def _write_stage(
         if restored.uns["prophosqua"]["stage"] != stage:
             raise ValueError("MuData stage round-trip changed the completed type")
         recovered = _result(restored, stage, analysis)
-        for name, frame in result.items():
-            pd.testing.assert_frame_equal(
-                recovered[name].reset_index(drop=True),
-                frame.reset_index(drop=True),
-                check_dtype=False,
-            )
+        for name, value in result.items():
+            if isinstance(value, pd.DataFrame):
+                pd.testing.assert_frame_equal(
+                    recovered[name].reset_index(drop=True),
+                    value.reset_index(drop=True),
+                    check_dtype=False,
+                )
+            elif recovered[name] != value:
+                raise ValueError(f"MuData stage round-trip changed {name}")
         os.replace(path, output)
     finally:
         path.unlink(missing_ok=True)
@@ -112,6 +116,7 @@ def enrich(input_file: Path, output: Path, *, threads: int = 4) -> None:
     ranks = _result(container, "KinaseInputs", analysis)["ranks"]
     settings = parameters["kinaselib"]
     results = []
+    gsea_document: dict[str, dict[str, Any]] = {"data": {}, "rank_lists": {}}
     for contrast, data in ranks.items():
         ranked = mea.RankedPhosData(
             dp_data=data, rank_col="statistic.site", seq_col="SequenceWindow", pp=True
@@ -126,12 +131,22 @@ def enrich(input_file: Path, output: Path, *, threads: int = 4) -> None:
         result = fitted.enrichment_results.reset_index()
         result.insert(0, "contrast", contrast)
         results.append(result)
+        serialized = fitted.to_gsea_result_data(contrast)
+        gsea_document["data"].update(serialized["data"])
+        gsea_document["rank_lists"].update(serialized["rank_lists"])
     _write_stage(
         input_file,
         output,
         "MotifEnrichment",
         analysis,
-        {"mea_results": pd.concat(results, ignore_index=True)},
+        {
+            "mea_results": pd.concat(results, ignore_index=True),
+            "gsea_json": json.dumps(
+                gsea_document,
+                allow_nan=False,
+                separators=(",", ":"),
+            ),
+        },
     )
 
 

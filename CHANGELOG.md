@@ -1,5 +1,8 @@
 # ptm-pipeline 0.3.0
 
+- Preserve the native kinase-library MEA result as the same portable GSEA JSON
+  used by the R enrichment methods, including ranked values, substrate sets,
+  parameters, leading edges, source running scores, and hit positions.
 - Updating an existing order adds the two MuData input paths from its configured DEA directories while preserving all analysis settings, so the updated workflow can run immediately.
 
 - Import paired DEA AnnData once, then use MuData for every statistics, ranking, motif assignment, enrichment, and report input. Assemble the final container before reports and write Excel/RDS delivery files only after all reports finish. Discovery reads stored design/contrasts without a separate annotation file. Requires Python 3.12+, current prophosqua, prolfquapp, and ptm3d.
