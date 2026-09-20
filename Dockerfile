@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install clusterProfiler and other deps first (prophosqua vignettes need them)
 RUN R -e "pak::pkg_install(c( \
     'bioc::anndataR', 'bioc::rhdf5', \
-    'bioc::clusterProfiler', 'bioc::fgsea', 'bioc::enrichplot', \
+    'bioc::clusterProfiler', 'bioc::fgsea', 'bioc::enrichplot', 'bioc::limpa', \
     'any::ggseqlogo', 'any::patchwork', 'any::DT', 'any::here', 'any::rmarkdown', \
     'github::fgcz/fgczQuartoTemplate@dbeb852bc14f4374d59ff8b94350faf84f4513e1', \
     'github::fgcz/prolfqua', 'github::prolfqua/prolfquapp', \
