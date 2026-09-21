@@ -18,11 +18,14 @@ def test_results_archive_contains_only_final_h5mu(tmp_path):
         "PTM_statistics.h5mu",
         "PTM_DPA/PTMSEA.h5mu",
         "PTM_DPA/PTMSEA.cbor",
+        "PTM_DPA/proptm3d/data/catalog.cbor",
+        "PTM_DPA/ptm3d/data/catalog.cbor",
         "PTM_DPA/report.html",
         "PTM_DPA/logs/report.log",
         "PTM_DPA/report.html.render/plot.png",
     ):
         path = folder / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(relative)
     archive_path = tmp_path / "results.zip"
 
@@ -32,4 +35,5 @@ def test_results_archive_contains_only_final_h5mu(tmp_path):
         assert set(archive.namelist()) == {
             "PTM_output/PTM_results.h5mu",
             "PTM_output/PTM_DPA/report.html",
+            "PTM_output/PTM_DPA/proptm3d/data/catalog.cbor",
         }

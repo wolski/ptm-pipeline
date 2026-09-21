@@ -14,23 +14,27 @@ from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
 
 
 def create_results_archive(folder: str, output: str) -> None:
-    """Package delivery files and the final H5MU, never CBOR handoffs or old stages."""
+    """Package delivery files while omitting intermediate enrichment stages."""
     root = Path(folder)
     destination = Path(output)
     temporary = destination.with_name(destination.name + ".tmp")
+    stages = {"PTMSEA", "KinaseInputs", "KinaseAssignments", "MotifEnrichment", "KinaseGSEA", "MEA"}
     try:
         with ZipFile(temporary, "w", allowZip64=True) as archive:
             for path in sorted(root.rglob("*")):
-                if not path.is_file() or "logs" in path.relative_to(root).parts:
+                relative = path.relative_to(root)
+                if not path.is_file() or "logs" in relative.parts or "ptm3d" in relative.parts:
                     continue
-                if any(part.endswith(".render") for part in path.relative_to(root).parts):
+                if any(part.endswith(".render") for part in relative.parts):
                     continue
-                if path.name.startswith(".h5mu-") or path.suffix == ".cbor":
+                if path.name.startswith(".h5mu-"):
+                    continue
+                if len(relative.parts) == 2 and path.suffix == ".cbor" and path.stem in stages:
                     continue
                 if path.suffix == ".h5mu" and path.name != "PTM_results.h5mu":
                     continue
                 compression = ZIP_STORED if path.suffix == ".h5mu" else ZIP_DEFLATED
-                archive.write(path, arcname=str(Path(root.name) / path.relative_to(root)), compress_type=compression)
+                archive.write(path, arcname=str(Path(root.name) / relative), compress_type=compression)
         os.replace(temporary, destination)
     finally:
         temporary.unlink(missing_ok=True)
