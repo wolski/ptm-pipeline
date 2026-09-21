@@ -37,7 +37,7 @@ init: unzip
 	@for d in $(DATA_DIRS); do \
 		out=$(DATA_DIR)/PTM_$$(basename "$$d"); \
 		echo "Initializing $$d -> $$out"; \
-		ptm-pipeline init-default "$$d" "$$out" || exit 1; \
+		ptm-pipeline init default "$$d" "$$out" --force || exit 1; \
 	done
 	@echo "All test projects initialized."
 
@@ -63,7 +63,7 @@ docker-init:
 		d=$${z%.zip}; \
 		out=$(DATA_DIR)/PTM_$$(basename "$$d"); \
 		echo "Docker init: $$d -> $$out"; \
-		$(PTM_SH) init-default "$$d" "$$out" || exit 1; \
+		$(PTM_SH) init default "$$d" "$$out" --force || exit 1; \
 	done
 	@echo "All Docker test projects initialized."
 

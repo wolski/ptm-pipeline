@@ -108,13 +108,13 @@ Combined output:
 
 ```
 ptm-pipeline init      # auto-detect data, generate config
-make all               # run the full pipeline
+ptm-pipeline run        # run the full pipeline
 ```
 
 **Docker (zero local setup):**
 
 ```
-ptm-pipeline.sh init-default DEA_data/ output/
+ptm-pipeline.sh init default DEA_data/ output/
 ptm-pipeline.sh run output/
 ```
 

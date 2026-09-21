@@ -1277,7 +1277,7 @@ docs = [
 requires-dist = [
     { name = "anndata", specifier = ">=0.12" },
     { name = "cbor2", specifier = ">=5.7" },
-    { name = "cyclopts", specifier = ">=3.0" },
+    { name = "cyclopts", specifier = ">=4.5" },
     { name = "h5py", specifier = ">=3.12" },
     { name = "kinase-library", git = "https://github.com/wolski/kinase-library" },
     { name = "mudata", specifier = ">=0.4.1" },

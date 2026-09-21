@@ -51,12 +51,6 @@ rule all:
         DEA_ARCHIVES["phospho"],
         DEA_ARCHIVES["protein"]
 
-rule data:
-    input: FINAL
-
-rule reports:
-    input: REPORTS, INDEX
-
 rule import_inputs:
     input:
         enriched=config["enriched_h5ad"],
@@ -185,14 +179,3 @@ rule zip:
             list(input.delivery) + [input.h5mu] + list(input.reports) + [input.index]
         )
         shell("zip -r {output.phospho:q} {params.phospho:q} && zip -r {output.protein:q} {params.protein:q}")
-
-rule dea:
-    input: STATISTICS
-rule combine:
-    input: FINAL
-rule clean:
-    shell: "snakemake --delete-all-output"
-
-rule help:
-    run:
-        print("Targets: data (final MuData), reports (HTML from MuData), all (reports, terminal exports and archives)")

@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working in this repository.
 
 ## Changelog
 
@@ -27,37 +27,34 @@ uv run mkdocs serve                  # Preview at http://127.0.0.1:8000
 uv run mkdocs build --strict         # Build into public/ exactly as CI does
 
 # CLI commands
-ptm-pipeline init [DIR]              # Initialize pipeline (auto-discovers DEA folders)
-ptm-pipeline validate [DIR]          # Check dependencies and setup
-ptm-pipeline update [DIR]            # Update pipeline files, preserve config
-ptm-pipeline info [DIR]              # Show discovered DEA folders (debugging)
-
-# Run the analysis pipeline (after init)
-snakemake -s Snakefile --configfile ptm_config.yaml -j1 all
+ptm-pipeline init                       # Interactive initialization
+ptm-pipeline init default               # Non-interactive initialization
+ptm-pipeline run                        # Complete workflow
+ptm-pipeline run dry                    # Preview complete workflow
+ptm-pipeline clean                      # Remove declared outputs
+ptm-pipeline clean init                 # Remove initialization files
+ptm-pipeline clean all                  # Remove both
 ```
 
 ## Architecture
 
 ```
 src/ptm_pipeline/
-├── cli.py          # Click-based CLI entry point (4 commands)
+├── cli.py          # Cyclopts CLI entry point (init, run, clean)
 ├── discover.py     # Auto-detection of DEA folders and annotation files
 ├── init.py         # Project initialization and template copying
 ├── config.py       # YAML config generation
-└── validate.py     # Environment validation (files, R packages, tools)
+└── clean.py        # Initialization-file cleanup
 
 template/                # Copied to target projects on init
-├── Snakefile            # Main Snakemake orchestration
-├── helpers.py           # Snakemake helper functions
-└── Makefile             # Convenience targets
+├── Snakefile            # Workflow rules
+└── helpers.py           # Workflow helpers
 ```
 
 There is no `template/src/`. A project holds no R code: every rule calls
 `ptm.sh <command>`, the one wrapper from the installed prophosqua's
 `inst/application/bin`, which resolves that command's `CMD_*.R` from the install
-path. `ptm-pipeline init` and `update` copy `ptm.sh` into the project so a person
-can run the same entry point by hand, and `update` deletes a `src/` and any
-per-command `ptm_*.sh` left over from before the move. To change analysis behaviour, edit prophosqua and reinstall it.
+path. `ptm-pipeline init` copies `ptm.sh` into the project so a person can run the same entry point by hand. To change analysis behaviour, edit prophosqua and reinstall it. Initialization no longer generates a Makefile; the CLI owns running and cleanup.
 
 ## Key Patterns
 

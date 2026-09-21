@@ -163,7 +163,7 @@ Every candidate needs a FragPipe re-search before the pipeline can see it:
 - label-free → `combined_site_STY_*.tsv` → `-s prolfquappPTMreaders.FP_combined_STY`
 
 then two prolfquapp DEA runs with the same contrasts, then `ptm-pipeline init`
-and `snakemake all`. Budget the re-search realistically: 172 GB (PXD043476) or
+and `ptm-pipeline run`. Budget the re-search realistically: 172 GB (PXD043476) or
 93.5 GB (PXD058857) of raw, and a TMT search with phospho as a variable
 modification is not a quick job.
 

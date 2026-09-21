@@ -8,7 +8,6 @@ import h5py
 
 from ptm_pipeline.config import generate_config
 from ptm_pipeline.discover import find_dea_anndata, read_dea_contrasts
-from ptm_pipeline.validate import check_file_exists
 
 
 class DiscoverAnnDataTest(unittest.TestCase):
@@ -47,7 +46,6 @@ class DiscoverAnnDataTest(unittest.TestCase):
         self.assertNotIn("annot_file", config)
         self.assertEqual(config["gsea"]["max_size"], 500)
         self.assertEqual(config["kinaselib"]["gsea_max_size"], 5000)
-        self.assertFalse(check_file_exists(Path.cwd(), "missing input").passed)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
-"""CLI entry point for PTM pipeline."""
+"""Three user-facing commands for initializing, running, and cleaning PTM projects."""
 
+import subprocess
 from importlib.metadata import version
 from pathlib import Path
 from typing import Annotated
@@ -7,330 +8,193 @@ from typing import Annotated
 import cyclopts
 from rich.console import Console
 
+from .clean import clean_project
+from .init import init_project
+
 console = Console()
 
 app = cyclopts.App(
     name="ptm-pipeline",
-    help="PTM Pipeline - Deploy phosphoproteomics analysis pipeline to new projects.",
+    help="Initialize, run, and clean a phosphoproteomics PTM analysis.",
     version=version("ptm-pipeline"),
 )
+init_app = cyclopts.App(
+    name="init", help="Create pipeline files from paired DEA results."
+)
+run_app = cyclopts.App(name="run", help="Run the complete Snakemake pipeline.")
+clean_app = cyclopts.App(name="clean", help="Remove outputs or initialization files.")
+for group in (init_app, run_app, clean_app):
+    app.command(group)
 
 
-@app.command
-def init(
-    input_dir: Annotated[Path, cyclopts.Parameter(help="Directory containing DEA folders")] = Path("."),
-    output_dir: Annotated[Path, cyclopts.Parameter(help="Output directory for pipeline files (defaults to current directory)")] = Path("."),
-    *,
-    name: Annotated[str | None, cyclopts.Parameter(name=["--name", "-n"], help="Experiment name (auto-detected if not provided)")] = None,
-    dry_run: Annotated[bool, cyclopts.Parameter(help="Show what would be done without making changes")] = False,
-    force: Annotated[bool, cyclopts.Parameter(name=["--force", "-f"], help="Overwrite existing files")] = False,
-    default: Annotated[bool, cyclopts.Parameter(name=["--default", "-d"], help="Non-interactive mode: use defaults for all prompts")] = False,
-):
-    """Initialize PTM pipeline in a project directory.
-
-    Discovers DEA folders from INPUT_DIR, writes pipeline files to OUTPUT_DIR.
-    Use --default for fully non-interactive initialization with default settings.
-    """
-    from .init import init_project
-
-    if not input_dir.exists():
-        console.print(f"[red]Error:[/red] Input directory does not exist: {input_dir}")
+def _initialize(
+    input_dir: Path,
+    output_dir: Path,
+    name: str | None,
+    force: bool,
+    noninteractive: bool,
+) -> None:
+    if not input_dir.is_dir():
+        console.print(f"[red]Input directory does not exist:[/red] {input_dir}")
         raise SystemExit(1)
-
-    if not output_dir.exists():
-        console.print(f"[red]Error:[/red] Output directory does not exist: {output_dir}")
+    if noninteractive:
+        output_dir.mkdir(parents=True, exist_ok=True)
+    elif not output_dir.is_dir():
+        console.print(f"[red]Output directory does not exist:[/red] {output_dir}")
         raise SystemExit(1)
-
     success = init_project(
         project_dir=output_dir,
         input_dir=input_dir,
         name=name,
-        dry_run=dry_run,
         force=force,
-        default=default,
+        default=noninteractive,
     )
+    if not success:
+        raise SystemExit(1)
 
-    raise SystemExit(0 if success else 1)
+
+@init_app.default
+def init(
+    input_dir: Annotated[
+        Path, cyclopts.Parameter(help="Directory containing DEA folders")
+    ] = Path("."),
+    output_dir: Annotated[
+        Path, cyclopts.Parameter(help="Directory for pipeline files")
+    ] = Path("."),
+    *,
+    name: Annotated[str | None, cyclopts.Parameter(help="Experiment name")] = None,
+    force: Annotated[
+        bool, cyclopts.Parameter(help="Overwrite an initialized project")
+    ] = False,
+) -> None:
+    """Initialize interactively, prompting for experiment settings."""
+    _initialize(input_dir, output_dir, name, force, noninteractive=False)
 
 
-@app.command
+@init_app.command(name="default")
 def init_default(
-    input_dir: Annotated[Path, cyclopts.Parameter(help="Directory containing DEA folders")] = Path("."),
-    output_dir: Annotated[Path, cyclopts.Parameter(help="Output directory for pipeline files (created if needed, defaults to .)")] = Path("."),
-):
-    """Initialize PTM pipeline with all defaults (non-interactive).
-
-    Discovers DEA folders from INPUT_DIR, writes pipeline files to OUTPUT_DIR.
-    OUTPUT_DIR is created if it does not exist.
-
-    Examples:
-        ptm-pipeline init-default data/FP_TMT/ PTM_FP_TMT/
-        ptm-pipeline init-default .
-    """
-    from .init import init_project
-
-    if not input_dir.exists():
-        console.print(f"[red]Error:[/red] Input directory does not exist: {input_dir}")
-        raise SystemExit(1)
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    success = init_project(
-        project_dir=output_dir,
-        input_dir=input_dir,
-        default=True,
-        force=True,
-    )
-
-    raise SystemExit(0 if success else 1)
-
-
-@app.command
-def run(
-    directory: Annotated[Path, cyclopts.Parameter(help="Project directory containing ptm_config.yaml and Snakefile")] = Path("."),
+    input_dir: Annotated[
+        Path, cyclopts.Parameter(help="Directory containing DEA folders")
+    ] = Path("."),
+    output_dir: Annotated[
+        Path, cyclopts.Parameter(help="Directory for pipeline files")
+    ] = Path("."),
     *,
-    cores: Annotated[int, cyclopts.Parameter(name=["--cores", "-j"], help="Number of cores for Snakemake")] = 1,
-    dry_run: Annotated[bool, cyclopts.Parameter(name=["--dry-run", "-n"], help="Show what would be executed")] = False,
-    target: Annotated[str, cyclopts.Parameter(help="Snakemake target")] = "all",
-):
-    """Run the PTM analysis pipeline.
+    name: Annotated[str | None, cyclopts.Parameter(help="Experiment name")] = None,
+    force: Annotated[
+        bool, cyclopts.Parameter(help="Overwrite an initialized project")
+    ] = False,
+) -> None:
+    """Initialize without prompts, using discovered values and defaults."""
+    _initialize(input_dir, output_dir, name, force, noninteractive=True)
 
-    Executes Snakemake in the specified project directory.
 
-    Examples:
-        ptm-pipeline run data/PTM_FP_TMT/
-        ptm-pipeline run data/PTM_FP_TMT/ --dry-run
-        ptm-pipeline run data/PTM_FP_TMT/ -j4
-    """
-    import subprocess
-
+def _snakemake_command(directory: Path) -> tuple[Path, list[str]]:
     directory = directory.resolve()
-
-    config_file = directory / "ptm_config.yaml"
+    if not directory.is_dir():
+        console.print(f"[red]Project directory does not exist:[/red] {directory}")
+        raise SystemExit(1)
     snakefile = directory / "Snakefile"
-
-    if not config_file.exists():
-        console.print(f"[red]Error:[/red] No ptm_config.yaml found in {directory}")
-        console.print("Run 'ptm-pipeline init' or 'ptm-pipeline init-default' first.")
-        raise SystemExit(1)
-
-    if not snakefile.exists():
-        console.print(f"[red]Error:[/red] No Snakefile found in {directory}")
-        raise SystemExit(1)
-
-    cmd = [
-        "snakemake",
-        "-s", str(snakefile),
-        "--configfile", str(config_file),
-        f"-j{cores}",
-    ]
-    if dry_run:
-        cmd.append("-n")
-    cmd.append(target)
-
-    console.print(f"[bold]Running pipeline in:[/bold] {directory}")
-    console.print(f"[dim]$ {' '.join(cmd)}[/dim]\n")
-
-    result = subprocess.run(cmd, cwd=directory)
-    raise SystemExit(result.returncode)
-
-
-@app.command
-def validate(
-    directory: Annotated[Path, cyclopts.Parameter(help="Project directory to validate")] = Path("."),
-    *,
-    quick: Annotated[bool, cyclopts.Parameter(name=["--quick", "-q"], help="Skip slow checks (R packages, uv tools)")] = False,
-):
-    """Validate project setup for PTM pipeline.
-
-    Checks that all required files, R packages, and tools are available.
-    """
-    from .validate import validate_project
-
-    if not directory.exists():
-        console.print(f"[red]Error:[/red] Directory does not exist: {directory}")
-        raise SystemExit(1)
-
-    success = validate_project(project_dir=directory, quick=quick)
-
-    raise SystemExit(0 if success else 1)
-
-
-@app.command
-def update(
-    directory: Annotated[Path, cyclopts.Parameter(help="Project directory to update")] = Path("."),
-    *,
-    dry_run: Annotated[bool, cyclopts.Parameter(help="Show what would be updated")] = False,
-):
-    """Update pipeline files to latest version.
-
-    Copies the workflow and wrapper, preserving settings and adding MuData input paths.
-    """
-    from .init import copy_template_files, get_template_dir
-    from .config import _make_relative_path, write_config
-    from .discover import find_dea_anndata
-    import yaml
-
-    if not directory.exists():
-        console.print(f"[red]Error:[/red] Directory does not exist: {directory}")
-        raise SystemExit(1)
-
-    directory = directory.resolve()
-
-    # Check config exists (don't update uninitialized projects)
     config_file = directory / "ptm_config.yaml"
-    if not config_file.exists():
-        console.print("[red]Error:[/red] No ptm_config.yaml found. Run 'ptm-pipeline init' first.")
-        raise SystemExit(1)
-
-    console.print(f"\n[bold]Updating PTM pipeline in:[/bold] {directory}\n")
-
-    try:
-        template_dir = get_template_dir()
-        console.print(f"[dim]Template source: {template_dir}[/dim]\n")
-    except FileNotFoundError as e:
-        console.print(f"[red]Error:[/red] {e}")
-        raise SystemExit(1)
-
-    configuration = yaml.safe_load(config_file.read_text())
-
-    # The key names the workbook export_delivery writes, not an input it reads.
-    renamed = [
-        analysis
-        for analysis, settings in configuration.get("analyses", {}).items()
-        if "xlsx_input" in settings
-    ]
-    for analysis in renamed:
-        settings = configuration["analyses"][analysis]
-        settings["xlsx_output"] = settings.pop("xlsx_input")
-
-    additions = {}
-    for key, dea_key in (("enriched_h5ad", "phospho_dea_dir"), ("total_h5ad", "protein_dea_dir")):
-        if key in configuration:
-            continue
-        dea_dir = directory / configuration[dea_key]
-        artifact = find_dea_anndata(dea_dir)
-        if artifact is None:
-            console.print(f"[red]Error:[/red] No Results_WU_*/AnnData.h5ad in {dea_dir}. Set {key} first.")
+    for path in (snakefile, config_file):
+        if not path.is_file():
+            console.print(f"[red]Missing pipeline file:[/red] {path}")
+            console.print(
+                "Run 'ptm-pipeline init' or 'ptm-pipeline init default' first."
+            )
             raise SystemExit(1)
-        additions[key] = _make_relative_path(artifact, directory)
-
-    copied = copy_template_files(directory, dry_run=dry_run)
-    for key, value in additions.items():
-        console.print(f"  {'Would add' if dry_run else 'Added'}: {key}: {value}")
-    for analysis in renamed:
-        console.print(f"  {'Would rename' if dry_run else 'Renamed'}: analyses.{analysis}.xlsx_input -> xlsx_output")
-    if (additions or renamed) and not dry_run:
-        write_config(configuration | additions, config_file)
-
-    action = "Would update" if dry_run else "Updated"
-    for f in copied:
-        console.print(f"  {action}: {f}")
-
-    if dry_run:
-        console.print("\n[yellow]Dry run complete.[/yellow] No files were modified.")
-    else:
-        console.print(f"\n[green]Updated {len(copied)} files.[/green]")
-        console.print("  Existing ptm_config.yaml settings were preserved.")
+    # Snakemake accepts multiple --configfile values and would treat a trailing
+    # 'all' as another config filename. Put the target before the option.
+    return directory, [
+        "snakemake",
+        "all",
+        "-s",
+        str(snakefile),
+        "--configfile",
+        str(config_file),
+    ]
 
 
-@app.command
-def clean(
-    directory: Annotated[Path, cyclopts.Parameter(help="Project directory to clean")] = Path("."),
+def _execute(
+    directory: Path, *, cores: int | None = None, flag: str | None = None
+) -> None:
+    directory, command = _snakemake_command(directory)
+    if cores is not None:
+        if cores < 1:
+            console.print("[red]--cores must be a positive integer.[/red]")
+            raise SystemExit(1)
+        command.extend(("--cores", str(cores)))
+    if flag is not None:
+        command.append(flag)
+    console.print(f"[bold]PTM pipeline:[/bold] {directory}")
+    console.print(f"[dim]$ {' '.join(command)}[/dim]")
+    try:
+        result = subprocess.run(command, cwd=directory, check=False)
+    except FileNotFoundError:
+        console.print("[red]Snakemake is not installed or not on PATH.[/red]")
+        raise SystemExit(1) from None
+    if result.returncode:
+        raise SystemExit(result.returncode)
+
+
+@run_app.default
+def run(
+    directory: Annotated[
+        Path, cyclopts.Parameter(help="Initialized project directory")
+    ] = Path("."),
     *,
-    dry_run: Annotated[bool, cyclopts.Parameter(help="Show what would be removed")] = False,
-    force: Annotated[bool, cyclopts.Parameter(name=["--force", "-f"], help="Skip confirmation prompt")] = False,
-):
-    """Remove pipeline files created by init.
+    cores: Annotated[
+        int, cyclopts.Parameter(name=["--cores", "-j"], help="Parallel cores")
+    ] = 1,
+) -> None:
+    """Run the complete pipeline through the final reports and exports."""
+    _execute(directory, cores=cores)
 
-    Removes ptm_config.yaml, Snakefile, helpers.py, Makefile, and src/.
-    DEA folders and other project data are preserved.
-    """
-    from .clean import clean_project
 
-    if not directory.exists():
-        console.print(f"[red]Error:[/red] Directory does not exist: {directory}")
+@run_app.command(name="dry")
+def run_dry(
+    directory: Annotated[
+        Path, cyclopts.Parameter(help="Initialized project directory")
+    ] = Path("."),
+) -> None:
+    """Show the jobs a full run would execute without changing outputs."""
+    _execute(directory, flag="--dry-run")
+
+
+@clean_app.default
+def clean(
+    directory: Annotated[
+        Path, cyclopts.Parameter(help="Initialized project directory")
+    ] = Path("."),
+) -> None:
+    """Remove outputs declared by the Snakemake workflow."""
+    _execute(directory, flag="--delete-all-output")
+
+
+@clean_app.command(name="init")
+def clean_init(
+    directory: Annotated[
+        Path, cyclopts.Parameter(help="Initialized project directory")
+    ] = Path("."),
+) -> None:
+    """Remove files created by initialization, preserving analysis outputs."""
+    if not clean_project(directory):
         raise SystemExit(1)
 
-    success = clean_project(
-        project_dir=directory,
-        dry_run=dry_run,
-        force=force,
-    )
 
-    raise SystemExit(0 if success else 1)
-
-
-@app.command
-def info(
-    directory: Annotated[Path, cyclopts.Parameter(help="Directory to scan for DEA folders")] = Path("."),
-):
-    """Show information about discovered DEA folders.
-
-    Useful for debugging auto-discovery before running init.
-    """
-    from .discover import find_all_dea_folders, find_dea_anndata, read_dea_contrasts
-    from rich.table import Table
-
-    if not directory.exists():
-        console.print(f"[red]Error:[/red] Directory does not exist: {directory}")
+@clean_app.command(name="all")
+def clean_all(
+    directory: Annotated[
+        Path, cyclopts.Parameter(help="Initialized project directory")
+    ] = Path("."),
+) -> None:
+    """Remove workflow outputs, then initialization files."""
+    _execute(directory, flag="--delete-all-output")
+    if not clean_project(directory):
         raise SystemExit(1)
 
-    directory = directory.resolve()
 
-    console.print(f"\n[bold]Scanning:[/bold] {directory}\n")
-
-    folders = find_all_dea_folders(directory)
-
-    if not folders["phospho"] and not folders["protein"]:
-        console.print("[yellow]No DEA folders found.[/yellow]")
-        console.print("[dim]Phospho patterns: DEA_*_WUphospho_*, DEA_*_WUcombined_*, DEA_*_*STY*[/dim]")
-        console.print("[dim]Protein patterns: DEA_*_WUprot_*, DEA_*_WUtotal_*[/dim]")
-        return
-
-    # Phospho folders
-    table = Table(title="Phospho DEA Folders")
-    table.add_column("#", style="dim")
-    table.add_column("Folder", style="green")
-    table.add_column("AnnData artifact")
-
-    for i, d in enumerate(folders["phospho"], 1):
-        artifact = find_dea_anndata(d)
-        artifact_str = str(artifact.relative_to(d)) if artifact else "[red]Not found[/red]"
-        table.add_row(str(i), d.name, artifact_str)
-
-    if folders["phospho"]:
-        console.print(table)
-    else:
-        console.print("[yellow]No phospho DEA folders found[/yellow]")
-        console.print("[dim]  Patterns: DEA_*_WUphospho_*, DEA_*_WUcombined_*, DEA_*_*STY*[/dim]")
-
-    console.print()
-
-    # Protein folders
-    table = Table(title="Protein DEA Folders")
-    table.add_column("#", style="dim")
-    table.add_column("Folder", style="green")
-
-    for i, d in enumerate(folders["protein"], 1):
-        table.add_row(str(i), d.name)
-
-    if folders["protein"]:
-        console.print(table)
-    else:
-        console.print("[yellow]No protein DEA folders found (DEA_*_WUprot_* or DEA_*_WUtotal_*)[/yellow]")
-
-    # Show contrasts from first phospho folder
-    if folders["phospho"]:
-        artifact = find_dea_anndata(folders["phospho"][0])
-        if artifact:
-            contrasts = read_dea_contrasts(artifact)
-            console.print(f"\n[bold]Contrasts from {artifact.name}:[/bold]")
-            for c in contrasts:
-                console.print(f"  - {c}")
-
-
-def main():
+def main() -> None:
     app()
 
 

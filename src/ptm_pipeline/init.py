@@ -16,6 +16,7 @@ from .discover import (
     get_experiment_name,
 )
 from .config import generate_config, write_config, config_to_yaml_string
+from .clean import generated_makefile
 
 
 console = Console()
@@ -56,8 +57,7 @@ def get_template_dir() -> Path:
 def copy_template_files(project_dir: Path, dry_run: bool = False) -> list[str]:
     """Copy template files to project directory.
 
-    The project gets the workflow and nothing else: Snakefile, helpers.py and
-    Makefile, plus the ptm.sh wrapper prophosqua ships. No R code is copied,
+    The project gets Snakefile, helpers.py, and the ptm.sh wrapper. No R code is copied,
     because there is none to copy -- every rule reaches its R script through
     that wrapper, which resolves it from the installed package.
 
@@ -67,7 +67,7 @@ def copy_template_files(project_dir: Path, dry_run: bool = False) -> list[str]:
     copied_files = []
 
     # Files to copy at root level
-    root_files = ["Snakefile", "helpers.py", "Makefile"]
+    root_files = ["Snakefile", "helpers.py"]
 
     for filename in root_files:
         src = template_dir / filename
@@ -78,8 +78,11 @@ def copy_template_files(project_dir: Path, dry_run: bool = False) -> list[str]:
             copied_files.append(filename)
 
     copied_files.extend(copy_shell_wrapper(project_dir, dry_run=dry_run))
-    copied_files.extend(remove_legacy_src(project_dir, dry_run=dry_run))
-    copied_files.extend(remove_legacy_wrappers(project_dir, dry_run=dry_run))
+    legacy_makefile = generated_makefile(project_dir)
+    if legacy_makefile is not None:
+        if not dry_run:
+            legacy_makefile.unlink()
+        console.print(f"  {'Would remove' if dry_run else 'Removed'} generated Makefile")
 
     return copied_files
 
@@ -115,49 +118,6 @@ def copy_shell_wrapper(project_dir: Path, dry_run: bool = False) -> list[str]:
         return []
 
     return sorted(p.name for p in project_dir.glob("ptm.sh"))
-
-
-def remove_legacy_src(project_dir: Path, dry_run: bool = False) -> list[str]:
-    """Delete the src/ directory of a project initialised before the move.
-
-    Those files are copies of R code that now lives in prophosqua. Leaving them
-    behind would be worse than deleting them: a stale copy of a report template
-    invites an edit that no run will ever pick up.
-    """
-    legacy = project_dir / "src"
-    if not legacy.is_dir():
-        return []
-
-    if not dry_run:
-        shutil.rmtree(legacy)
-    console.print(
-        f"  {'Would remove' if dry_run else 'Removed'} src/ -- "
-        "its R code now lives in the prophosqua package."
-    )
-    return []
-
-
-def remove_legacy_wrappers(project_dir: Path, dry_run: bool = False) -> list[str]:
-    """Delete the per-command ptm_<name>.sh wrappers of an older project.
-
-    They have been replaced by one ptm.sh taking the command as its first
-    argument. A left-behind ptm_ptmsea.sh would still run -- it resolves its
-    script from the installed package like everything else -- until the day
-    prophosqua stops shipping the script it names, at which point it fails with
-    a missing file rather than saying it is obsolete.
-    """
-    legacy = sorted(project_dir.glob("ptm_*.sh"))
-    if not legacy:
-        return []
-
-    for wrapper in legacy:
-        if not dry_run:
-            wrapper.unlink()
-    console.print(
-        f"  {'Would remove' if dry_run else 'Removed'} {len(legacy)} "
-        "per-command ptm_*.sh wrapper(s) -- replaced by ptm.sh <command>."
-    )
-    return []
 
 
 def _r_string(value: str) -> str:
@@ -199,12 +159,11 @@ def init_project(
     config_file = project_dir / "ptm_config.yaml"
     snakefile = project_dir / "Snakefile"
 
-    if (config_file.exists() or snakefile.exists()) and not force and not default:
-        console.print(
-            "[yellow]Warning:[/yellow] Pipeline files already exist. "
-            "Use --force to overwrite."
-        )
-        if not Confirm.ask("Continue anyway?"):
+    if (config_file.exists() or snakefile.exists()) and not force:
+        if default:
+            console.print("[red]Pipeline files already exist; use --force to overwrite.[/red]")
+            return False
+        if not Confirm.ask("Pipeline files already exist. Overwrite them?", default=False):
             return False
 
     # Discover DEA folders
@@ -293,11 +252,9 @@ def init_project(
 
     # Analysis options
     if default:
-        max_fig = 10
         run_kinase = True
     else:
         console.print("\n[bold]Analysis options:[/bold]")
-        max_fig = int(Prompt.ask("Max n-to-c plots per analysis", default="10"))
         run_kinase = Confirm.ask("Run kinase activity analysis?", default=True)
 
     # Generate config
@@ -312,7 +269,6 @@ def init_project(
         project_dir=project_dir,
         fdr=fdr,
         log2fc=log2fc,
-        max_fig=max_fig,
         run_kinase=run_kinase,
     )
 
@@ -344,13 +300,13 @@ def init_project(
         console.print("[yellow]Pipeline initialized, but incomplete.[/yellow]")
         console.print(
             f"\nDiscovery could not fill: {', '.join(unresolved)}"
-            f"\nSet them by hand in {config_file}, then run: make all"
+            f"\nSet them by hand in {config_file}, then run: ptm-pipeline run"
         )
         return False
     else:
         console.print("[green]Pipeline initialized successfully![/green]")
         console.print("\nNext steps:")
         console.print(f"  1. Review ptm_config.yaml")
-        console.print(f"  2. Run: make all")
+        console.print("  2. Run: ptm-pipeline run")
 
     return True

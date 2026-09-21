@@ -25,7 +25,6 @@ def generate_config(
     project_dir: Path | None = None,
     fdr: float = 0.25,
     log2fc: float = 0.5,
-    max_fig: int = 10,
     run_kinase: bool = True,
 ) -> dict:
     """Generate pipeline configuration dictionary.
@@ -66,10 +65,9 @@ def generate_config(
     return {
         # Output configuration
         "dir_out": dir_out,
-        "max_fig": max_fig,
         "run_kinase": run_kinase,
 
-        # Significance thresholds for downstream analyses (seqlogo, n_to_c plots)
+        # Significance thresholds for downstream analyses and reports
         "fdr": fdr,
         "log2fc": log2fc,
 

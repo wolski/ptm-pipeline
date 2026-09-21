@@ -79,7 +79,7 @@ flowchart TB
 
 Import reads both schema 2.0.0 DEA artifacts and their stored design and contrasts. `PTM_statistics.h5mu` is the shared read-only enrichment input. CBOR files carry each preparation and enrichment result through Snakemake; final assembly writes the nine validated JSON documents into `PTM_results.h5mu`. The statistics QMD reads the statistics H5MU once. The enrichment QMD reads the final H5MU separately for DPA, DPU, and CorrectFirst, producing one HTML per analysis. The index links all four reports; Excel/RDS exports run after them.
 
-`snakemake -j1 data` builds final MuData. `snakemake -j1 reports` renders from it. `snakemake -j1 all` adds terminal delivery exports and archives. R commands run through the installed prophosqua `ptm.sh`; Python kinase calculations use `ptm-kinase-cbor`, installed with ptm-pipeline. Both declare their installed source dependencies.
+`ptm-pipeline run` builds the complete workflow, including final MuData, reports, delivery exports, and archives. `ptm-pipeline run dry` previews the jobs. R commands run through the installed prophosqua `ptm.sh`; Python kinase calculations use `ptm-kinase-cbor`, installed with ptm-pipeline. Both declare their installed source dependencies.
 
 ## Quick Start
 
@@ -90,13 +90,13 @@ uv tool install git+https://github.com/wolski/ptm-pipeline
 # Initialize and run
 cd /path/to/project_with_DEA_results
 ptm-pipeline init
-make all
+ptm-pipeline run
 ```
 
 Or use Docker (no local R/Python setup needed):
 
 ```bash
-./ptm-pipeline.sh init-default DEA_data/ output/
+./ptm-pipeline.sh init default DEA_data/ output/
 ./ptm-pipeline.sh run output/
 ```
 
