@@ -82,19 +82,16 @@ def generate_config(
             "dpa": {
                 "sheet": "DPA",
                 "subdir": "PTM_DPA",
-                "xlsx_output": "Result_DPA.xlsx",
                 "stat_column": "statistic.site",
             },
             "dpu": {
                 "sheet": "DPU",
                 "subdir": "PTM_DPU",
-                "xlsx_output": "Result_DPU.xlsx",
                 "stat_column": "statistic.site",
             },
             "cf": {
                 "sheet": "CF",
                 "subdir": "PTM_CF_DPU",
-                "xlsx_output": "CorrectFirst_PTM_usage_results.xlsx",
                 "stat_column": "statistic.site",
             },
         },

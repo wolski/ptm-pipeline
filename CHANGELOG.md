@@ -1,11 +1,11 @@
 # ptm-pipeline 0.3.0
 
+- Deliver only `PTM_results.xlsx` alongside the final H5MU and reports. The workbook contains statistics and enrichment tables; per-analysis Excel and RDS files are no longer pipeline outputs. `ptm3d` remains a separate visualization application with no Snakemake rule or pipeline dependency.
 - `ptm-pipeline clean` and `clean all` now remove the configured PTM output directory after Snakemake cleanup, including reports and other files left by rules removed from the current workflow; DEA input folders remain protected.
 
 - Expose only `init`, `run`, and `clean` in the project CLI. `init default` uses non-interactive defaults, `run dry` previews the full workflow, and `clean init`/`clean all` select cleanup scope. New projects no longer get a Makefile or obsolete data/reports targets.
 - Render one enrichment report per DPA, DPU, and CorrectFirst analysis from the same parameterized QMD, and link all three from the index. Set a separate 5000-site maximum for kinase substrate GSEA; the 500-site PTM-SEA limit excluded every kinase set in o43037.
 - Render only the PTM statistics and enrichment Quarto reports from their MuData stages. A lightweight index links them; the delivery archive includes only declared final outputs, so stale legacy reports and proptm3d files are omitted.
-- Use `xlsx_output` for terminal workbook exports; `ptm-pipeline update` migrates existing configurations.
 - Replace 18 full MuData enrichment handoffs with compact CBOR artifacts. The delivery archive includes only the final H5MU and excludes stage CBOR and obsolete stage H5MU files.
 - Install the current MuData, report-template, and enrichment R dependencies before building prophosqua in the pipeline image, then build prophosqua without asking `remotes` to reinterpret the installed Bioconductor metadata.
 - Preserve the native kinase-library MEA result as the same portable GSEA JSON
@@ -13,18 +13,9 @@
   parameters, leading edges, source running scores, and hit positions.
 - Updating an existing order adds the two MuData input paths from its configured DEA directories while preserving all analysis settings, so the updated workflow can run immediately.
 
-- Import paired DEA AnnData once, then use MuData for every statistics, ranking, motif assignment, enrichment, and report input. Assemble the final container before reports and write Excel/RDS delivery files only after all reports finish. Discovery reads stored design/contrasts without a separate annotation file. Requires Python 3.12+, current prophosqua, prolfquapp, and ptm3d.
+- Import paired DEA AnnData once, then use MuData for every statistics, ranking, motif assignment, enrichment, and report input. Assemble the final container before reports and write the single Excel delivery workbook only after all reports finish. Discovery reads stored design/contrasts without a separate annotation file. Requires Python 3.12+, current prophosqua, and prolfquapp.
 
 - Discover CSV and TSV annotations with case-insensitive design columns, preserve an editable configuration when discovery is incomplete, and order MEA result generation after motif assignment.
-
-- The pipeline now runs **ptm3d** per analysis type: a `ptm3d_{dpa,dpu,cf}` rule maps the
-  differential sites onto AlphaFold structures and builds the browser app with the GSEA
-  category selector, fed by the enrichment GSEAResult JSONs that the PTM-SEA, KinaseLib
-  GSEA, and MEA steps now also write (declared as `*.json` outputs alongside xlsx/rds;
-  requires current prophosqua). Output lands in `<analysis dir>/ptm3d/`; view it with
-  `ptm3d serve <dir>`. Configure via the new `ptm3d:` config section (`run`, `repo`,
-  `max_proteins` -- null processes every protein with a significant site); projects
-  without the section get these defaults, and `run_kinase: false` disables the step.
 
 - A project directory now holds no R code at all: `template/src/` is gone, and with it the
   seven scripts and report templates every project used to carry. Every rule calls

@@ -26,20 +26,7 @@ STATISTICS_REPORT = f"{DIR_OUT}/ptm_statistics.html"
 ENRICHMENT_REPORTS = {name: f"{directory}/ptm_enrichment.html" for name, directory in DIRECTORIES.items()}
 REPORTS = [STATISTICS_REPORT] + (list(ENRICHMENT_REPORTS.values()) if RUN_KINASE else [])
 INDEX = f"{DIR_OUT}/index.html"
-DELIVERY = [f"{DIR_OUT}/PTM_results.xlsx", f"{DIR_OUT}/PTM_results.rds"]
-DELIVERY += [f"{DIRECTORIES[a]}/{value['xlsx_output']}" for a, value in ANALYSES.items()]
-DELIVERY += [f"{DIRECTORIES[a]}/{value['xlsx_output'].removesuffix('.xlsx')}.rds" for a, value in ANALYSES.items()]
-DELIVERY += [f"{DIRECTORIES['dpu']}/combined_test_diff.rds",
-             f"{DIRECTORIES['cf']}/CorrectFirst_intensities_wide.xlsx",
-             f"{DIRECTORIES['cf']}/CorrectFirst_intensities_file_annotation.xlsx"]
-if RUN_KINASE:
-    DELIVERY += [path for a, directory in DIRECTORIES.items() for path in (
-        f"{directory}/PTMSEA/PTMSEA_{a.upper()}_results.xlsx",
-        f"{directory}/KinaseLib/KinaseLib_GSEA_{a.upper()}.xlsx",
-        f"{directory}/KinaseLib/MEA_{a.upper()}_results.xlsx",
-        f"{directory}/PTMSEA/PTMSEA_{a.upper()}_results.rds",
-        f"{directory}/KinaseLib/KinaseLib_GSEA_{a.upper()}.rds",
-        f"{directory}/KinaseLib/MEA_{a.upper()}_results.rds")]
+DELIVERY = [f"{DIR_OUT}/PTM_results.xlsx"]
 
 rule all:
     input:
