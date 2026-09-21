@@ -1,5 +1,7 @@
 # ptm-pipeline 0.3.0
 
+- `ptm-pipeline clean` and `clean all` now remove the configured PTM output directory after Snakemake cleanup, including reports and other files left by rules removed from the current workflow; DEA input folders remain protected.
+
 - Expose only `init`, `run`, and `clean` in the project CLI. `init default` uses non-interactive defaults, `run dry` previews the full workflow, and `clean init`/`clean all` select cleanup scope. New projects no longer get a Makefile or obsolete data/reports targets.
 - Render one enrichment report per DPA, DPU, and CorrectFirst analysis from the same parameterized QMD, and link all three from the index. Set a separate 5000-site maximum for kinase substrate GSEA; the 500-site PTM-SEA limit excluded every kinase set in o43037.
 - Render only the PTM statistics and enrichment Quarto reports from their MuData stages. A lightweight index links them; the delivery archive includes only declared final outputs, so stale legacy reports and proptm3d files are omitted.

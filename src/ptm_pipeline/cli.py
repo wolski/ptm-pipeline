@@ -1,14 +1,16 @@
 """Three user-facing commands for initializing, running, and cleaning PTM projects."""
 
+import shutil
 import subprocess
 from importlib.metadata import version
 from pathlib import Path
 from typing import Annotated
 
 import cyclopts
+import yaml
 from rich.console import Console
 
-from .clean import clean_project
+from .clean import clean_project, output_directory
 from .init import init_project
 
 console = Console()
@@ -167,8 +169,8 @@ def clean(
         Path, cyclopts.Parameter(help="Initialized project directory")
     ] = Path("."),
 ) -> None:
-    """Remove outputs declared by the Snakemake workflow."""
-    _execute(directory, flag="--delete-all-output")
+    """Remove declared outputs and the configured pipeline output tree."""
+    _clean_outputs(directory)
 
 
 @clean_app.command(name="init")
@@ -189,9 +191,21 @@ def clean_all(
     ] = Path("."),
 ) -> None:
     """Remove workflow outputs, then initialization files."""
-    _execute(directory, flag="--delete-all-output")
+    _clean_outputs(directory)
     if not clean_project(directory):
         raise SystemExit(1)
+
+
+def _clean_outputs(directory: Path) -> None:
+    try:
+        output = output_directory(directory)
+    except (OSError, TypeError, ValueError, yaml.YAMLError) as error:
+        console.print(f"[red]Cannot clean pipeline outputs:[/red] {error}")
+        raise SystemExit(1) from None
+    _execute(directory, flag="--delete-all-output")
+    if output.is_dir():
+        shutil.rmtree(output)
+        console.print(f"Removed pipeline output directory: {output}")
 
 
 def main() -> None:

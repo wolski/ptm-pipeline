@@ -10,13 +10,23 @@ from ptm_pipeline.init import copy_template_files
 
 
 def initialized_project(tmp_path: Path) -> Path:
-    for name in ("Snakefile", "ptm_config.yaml", "helpers.py", "ptm.sh"):
+    for name in ("Snakefile", "helpers.py", "ptm.sh"):
         (tmp_path / name).write_text(name)
+    (tmp_path / "ptm_config.yaml").write_text(
+        "dir_out: PTM_output\n"
+        "phospho_dea_dir: DEA_phospho\n"
+        "protein_dea_dir: DEA_protein\n"
+    )
     return tmp_path
 
 
 def test_run_and_clean_use_only_the_full_snakemake_target(tmp_path):
     project = initialized_project(tmp_path)
+    legacy = project / "PTM_output" / "PTM_DPA" / "Analysis_n_to_c.html"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text("old report")
+    unrelated = project / "notes.txt"
+    unrelated.write_text("keep")
     with patch("ptm_pipeline.cli.subprocess.run") as execute:
         execute.return_value.returncode = 0
         run(project, cores=2)
@@ -29,6 +39,9 @@ def test_run_and_clean_use_only_the_full_snakemake_target(tmp_path):
     assert commands[1][-1] == "--dry-run"
     assert commands[2][-1] == "--delete-all-output"
     assert all(call.kwargs["cwd"] == project for call in execute.call_args_list)
+    assert not legacy.exists()
+    assert not legacy.parent.parent.exists()
+    assert unrelated.read_text() == "keep"
 
 
 def test_clean_init_preserves_outputs_and_unrelated_files(tmp_path):
@@ -51,7 +64,8 @@ def test_clean_init_preserves_outputs_and_unrelated_files(tmp_path):
 
 def test_clean_all_deletes_outputs_before_initialization_files(tmp_path):
     project = initialized_project(tmp_path)
-    output = project / "PTM_results.h5mu"
+    output = project / "PTM_output" / "PTM_results.h5mu"
+    output.parent.mkdir()
     output.write_text("result")
 
     def delete_outputs(command, **kwargs):
@@ -63,7 +77,7 @@ def test_clean_all_deletes_outputs_before_initialization_files(tmp_path):
     with patch("ptm_pipeline.cli.subprocess.run", side_effect=delete_outputs):
         clean_all(project)
 
-    assert not output.exists()
+    assert not output.parent.exists()
     assert not (project / "Snakefile").exists()
 
 
@@ -85,7 +99,23 @@ def test_noninteractive_init_refuses_to_overwrite_without_force(tmp_path):
     with pytest.raises(SystemExit) as error:
         init_default(project, project)
     assert error.value.code == 1
-    assert (project / "ptm_config.yaml").read_text() == "ptm_config.yaml"
+    assert "dir_out: PTM_output" in (project / "ptm_config.yaml").read_text()
+
+
+@pytest.mark.parametrize("dir_out", [".", "DEA_phospho", "DEA_phospho/output", "../outside"])
+def test_clean_rejects_output_paths_that_could_remove_inputs(tmp_path, dir_out):
+    project = initialized_project(tmp_path)
+    config = (project / "ptm_config.yaml").read_text()
+    (project / "ptm_config.yaml").write_text(
+        config.replace("dir_out: PTM_output", f"dir_out: {dir_out}")
+    )
+    with (
+        patch("ptm_pipeline.cli.subprocess.run") as execute,
+        pytest.raises(SystemExit) as error,
+    ):
+        clean(project)
+    assert error.value.code == 1
+    execute.assert_not_called()
 
 
 def test_template_copy_does_not_create_a_makefile(tmp_path):
