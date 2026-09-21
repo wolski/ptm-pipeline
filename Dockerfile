@@ -22,6 +22,7 @@ RUN R -e "pak::pkg_install(c( \
     'bioc::anndataR', 'bioc::rhdf5', \
     'bioc::clusterProfiler', 'bioc::fgsea', 'bioc::enrichplot', 'bioc::limpa', \
     'any::ggseqlogo', 'any::patchwork', 'any::DT', 'any::here', 'any::rmarkdown', \
+    'any::secretbase', \
     'github::fgcz/fgczQuartoTemplate@dbeb852bc14f4374d59ff8b94350faf84f4513e1', \
     'github::fgcz/prolfqua', 'github::prolfqua/prolfquapp', \
     'github::prolfqua/protsea' \

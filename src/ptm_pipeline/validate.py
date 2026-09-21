@@ -142,7 +142,7 @@ def validate_project(project_dir: Path, quick: bool = False) -> bool:
     results.append(check_command_exists("Rscript", "Rscript"))
     results.append(check_command_exists("uv", "uv"))
     if config and config.get("run_kinase", True):
-        results.append(check_command_exists("ptm-kinase-mudata", "Kinase MuData adapter"))
+        results.append(check_command_exists("ptm-kinase-cbor", "Kinase CBOR adapter"))
 
     if not quick:
         # Check R packages (slow)

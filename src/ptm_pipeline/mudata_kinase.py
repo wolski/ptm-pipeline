@@ -1,18 +1,16 @@
-"""Run the existing kinase-library calculations using only MuData handoffs."""
+"""Run kinase-library calculations with compact CBOR handoffs."""
 
 import importlib.metadata
 import json
 import os
-import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
 
+import cbor2
 import cyclopts
-import h5py
-import mudata
+import numpy as np
 import pandas as pd
-from anndata.io import write_elem
 
 from ptm_pipeline import mudata_values
 
@@ -30,44 +28,44 @@ def dependencies() -> None:
             print(distribution.locate_file(file).resolve())
 
 
-def _read_stage(path: Path, expected: str) -> tuple[Any, str, dict[str, Any]]:
-    container = mudata.read_h5mu(path)
-    metadata = container.uns["prophosqua"]
-    if metadata["stage"] != expected:
-        raise ValueError(f"Expected {expected}, found {metadata['stage']}")
-    return container, metadata["analysis"], mudata_values.unpack(metadata["parameters"])
+def _read_stage(path: Path, expected: str) -> dict[str, Any]:
+    with path.open("rb") as handle:
+        artifact = cbor2.load(handle)
+    if artifact["format"] != "prophosqua_stage" or artifact["version"] != "1.0.0":
+        raise ValueError(f"Unsupported PTM CBOR artifact: {path}")
+    if artifact["stage"] != expected:
+        raise ValueError(f"Expected {expected}, found {artifact['stage']}")
+    return artifact
 
 
-def _result(container: Any, stage: str, analysis: str) -> dict[str, Any]:
-    modality = {"DPA": "enriched", "DPU": "cf", "CF": "cf"}[analysis]
-    encoded = container.mod[modality].uns["prophosqua"]["completed_stages"][
-        f"{stage}__{analysis}"
-    ]
-    return mudata_values.unpack(encoded)
+def _plain(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _plain(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, np.ndarray)):
+        return [_plain(item) for item in value]
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
 
 
-def _write_stage(
-    source: Path, output: Path, stage: str, analysis: str, result: dict[str, Any]
-) -> None:
+def _write_stage(source: dict[str, Any], output: Path, stage: str, result: dict[str, Any]) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary = tempfile.mkstemp(
-        prefix=".h5mu-", suffix=".h5mu", dir=output.parent
-    )
+    descriptor, temporary = tempfile.mkstemp(prefix=".ptm-cbor-", dir=output.parent)
     os.close(descriptor)
     path = Path(temporary)
     try:
-        # Preserve every source dataset and annotation byte-for-byte. The only
-        # changed fields are stage identity and the newly completed result.
-        shutil.copyfile(source, path)
-        modality = {"DPA": "enriched", "DPU": "cf", "CF": "cf"}[analysis]
-        with h5py.File(path, "r+") as handle:
-            write_elem(handle["uns/prophosqua"], "stage", stage)
-            group = handle[f"mod/{modality}/uns/prophosqua/completed_stages"]
-            write_elem(group, f"{stage}__{analysis}", mudata_values.pack(result))
-        restored = mudata.read_h5mu(path)
-        if restored.uns["prophosqua"]["stage"] != stage:
-            raise ValueError("MuData stage round-trip changed the completed type")
-        recovered = _result(restored, stage, analysis)
+        artifact = {
+            "format": "prophosqua_stage",
+            "version": "1.0.0",
+            "stage": stage,
+            "analysis": source["analysis"],
+            "statistics_sha256": source["statistics_sha256"],
+            "result": _plain(mudata_values.pack(result)),
+        }
+        with path.open("wb") as handle:
+            cbor2.dump(artifact, handle)
+        restored = _read_stage(path, stage)
+        recovered = mudata_values.unpack(restored["result"])
         for name, value in result.items():
             if isinstance(value, pd.DataFrame):
                 pd.testing.assert_frame_equal(
@@ -76,7 +74,7 @@ def _write_stage(
                     check_dtype=False,
                 )
             elif recovered[name] != value:
-                raise ValueError(f"MuData stage round-trip changed {name}")
+                raise ValueError(f"CBOR stage round-trip changed {name}")
         os.replace(path, output)
     finally:
         path.unlink(missing_ok=True)
@@ -84,12 +82,12 @@ def _write_stage(
 
 @app.command
 def scan(input_file: Path, output: Path) -> None:
-    """Build complete kinase assignments from a KinaseInputs MuData stage."""
+    """Build kinase assignments from a KinaseInputs CBOR artifact."""
     from kinase_library.objects import phosphoproteomics
 
-    container, analysis, parameters = _read_stage(input_file, "KinaseInputs")
-    data = _result(container, "KinaseInputs", analysis)["seqwindows"]
-    settings = parameters["kinaselib"]
+    source = _read_stage(input_file, "KinaseInputs")
+    data = mudata_values.unpack(source["result"])["seqwindows"]
+    settings = source["settings"]
     experiment = phosphoproteomics.PhosphoProteomics(
         data=data[["SequenceWindow"]].drop_duplicates().reset_index(drop=True),
         seq_col="SequenceWindow",
@@ -102,19 +100,22 @@ def scan(input_file: Path, output: Path) -> None:
     matches.columns = ["SequenceWindow", "Kinase", "Value"]
     assignments = matches[["Kinase", "SequenceWindow"]].copy()
     assignments.columns = ["term", "gene"]
-    _write_stage(
-        input_file, output, "KinaseAssignments", analysis, {"term2gene": assignments}
-    )
+    _write_stage(source, output, "KinaseAssignments", {"term2gene": assignments})
 
 
 @app.command
-def enrich(input_file: Path, output: Path, *, threads: int = 4) -> None:
-    """Build complete motif enrichment from a KinaseAssignments MuData stage."""
+def enrich(input_file: Path, assignments: Path, output: Path, *, threads: int = 4) -> None:
+    """Build motif enrichment from kinase preparation CBOR artifacts."""
     from kinase_library.enrichment import mea
 
-    container, analysis, parameters = _read_stage(input_file, "KinaseAssignments")
-    ranks = _result(container, "KinaseInputs", analysis)["ranks"]
-    settings = parameters["kinaselib"]
+    source = _read_stage(input_file, "KinaseInputs")
+    assigned = _read_stage(assignments, "KinaseAssignments")
+    if (source["analysis"], source["statistics_sha256"]) != (
+        assigned["analysis"], assigned["statistics_sha256"]
+    ):
+        raise ValueError("Kinase CBOR preparations come from different statistics")
+    ranks = mudata_values.unpack(source["result"])["ranks"]
+    settings = source["settings"]
     results = []
     gsea_document: dict[str, dict[str, Any]] = {"data": {}, "rank_lists": {}}
     for contrast, data in ranks.items():
@@ -135,10 +136,9 @@ def enrich(input_file: Path, output: Path, *, threads: int = 4) -> None:
         gsea_document["data"].update(serialized["data"])
         gsea_document["rank_lists"].update(serialized["rank_lists"])
     _write_stage(
-        input_file,
+        source,
         output,
         "MotifEnrichment",
-        analysis,
         {
             "mea_results": pd.concat(results, ignore_index=True),
             "gsea_json": json.dumps(

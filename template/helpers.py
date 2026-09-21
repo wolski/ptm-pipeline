@@ -6,16 +6,41 @@ and constructing file paths used by the Snakemake pipeline.
 
 import glob
 import os
-import subprocess
 import shutil
+import subprocess
 from functools import lru_cache
+from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
 
 
-def get_kinase_mudata_files() -> tuple[str, list[str]]:
+def create_results_archive(folder: str, output: str) -> None:
+    """Package delivery files and the final H5MU, never CBOR handoffs or old stages."""
+    root = Path(folder)
+    destination = Path(output)
+    temporary = destination.with_name(destination.name + ".tmp")
+    try:
+        with ZipFile(temporary, "w", allowZip64=True) as archive:
+            for path in sorted(root.rglob("*")):
+                if not path.is_file() or "logs" in path.relative_to(root).parts:
+                    continue
+                if any(part.endswith(".render") for part in path.relative_to(root).parts):
+                    continue
+                if path.name.startswith(".h5mu-") or path.suffix == ".cbor":
+                    continue
+                if path.suffix == ".h5mu" and path.name != "PTM_results.h5mu":
+                    continue
+                compression = ZIP_STORED if path.suffix == ".h5mu" else ZIP_DEFLATED
+                archive.write(path, arcname=str(Path(root.name) / path.relative_to(root)), compress_type=compression)
+        os.replace(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def get_kinase_cbor_files() -> tuple[str, list[str]]:
     """Resolve the installed adapter and the source files its calculations use."""
-    executable = shutil.which("ptm-kinase-mudata")
+    executable = shutil.which("ptm-kinase-cbor")
     if executable is None:
-        raise ValueError("ptm-kinase-mudata is missing; install the current ptm-pipeline package")
+        raise ValueError("ptm-kinase-cbor is missing; install the current ptm-pipeline package")
     result = subprocess.run([executable, "dependencies"], capture_output=True, text=True, check=True)
     return executable, result.stdout.splitlines()
 

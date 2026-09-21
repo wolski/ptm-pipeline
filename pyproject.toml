@@ -17,6 +17,7 @@ dependencies = [
     "h5py>=3.12",
     "numpy>=1.26",
     "pandas>=2.0",
+    "cbor2>=5.7",
     "kinase-library @ git+https://github.com/wolski/kinase-library",
 ]
 
@@ -37,7 +38,7 @@ Repository = "https://github.com/wolski/ptm-pipeline"
 
 [project.scripts]
 ptm-pipeline = "ptm_pipeline.cli:main"
-ptm-kinase-mudata = "ptm_pipeline.mudata_kinase:main"
+ptm-kinase-cbor = "ptm_pipeline.mudata_kinase:main"
 
 [build-system]
 requires = ["hatchling"]
