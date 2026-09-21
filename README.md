@@ -91,14 +91,14 @@ paired DEA AnnData → PTM_inputs.h5mu → PTM_statistics.h5mu
                                        ↓
                                PTM_results.h5mu
                                        ↓
-                        HTML reports, ptm3d, index
+                        HTML reports, proptm3d, index
                                        ↓
                           terminal Excel/RDS exports
 ```
 
-Every intermediate above is `.h5mu`. `make data` stops at final MuData; `make reports` renders from it; `make all` also exports delivery files and archives. The original statistics, joins, rank order, and enrichment algorithms are retained. `run_kinase: false` disables enrichment and ptm3d.
+Every intermediate above is `.h5mu`. `make data` stops at final MuData; `make reports` renders from it; `make all` also exports delivery files and archives. The original statistics, joins, rank order, and enrichment algorithms are retained. `run_kinase: false` disables enrichment and proptm3d.
 
-For an existing project, run `ptm-pipeline update`. It adds missing `enriched_h5ad` and `total_h5ad` paths from the configured DEA directories and preserves existing settings. Optional `ptmsigdb.input_file` imports an existing RDS/GMT; otherwise the reference is downloaded during import. Install the current local prolfquapp, prophosqua, ptm-pipeline, and ptm3d versions together. Older container images do not contain this migration.
+For an existing project, run `ptm-pipeline update`. It adds missing `enriched_h5ad` and `total_h5ad` paths from the configured DEA directories and preserves existing settings. Optional `ptmsigdb.input_file` imports an existing RDS/GMT; otherwise the reference is downloaded during import. Install the current local prolfquapp, prophosqua, ptm-pipeline, and proptm3d versions together. Older container images do not contain this migration.
 
 ## Requirements
 

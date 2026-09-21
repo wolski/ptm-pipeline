@@ -9,8 +9,8 @@ configfile: "ptm_config.yaml"
 DIR_OUT = config["dir_out"]
 ANALYSES = config["analyses"]
 RUN_KINASE = config.get("run_kinase", True)
-PTM3D = config.get("ptm3d", {})
-RUN_PTM3D = PTM3D.get("run", True) and RUN_KINASE
+PROPTM3D = config.get("proptm3d", {})
+RUN_PROPTM3D = PROPTM3D.get("run", True) and RUN_KINASE
 PTM = get_prophosqua_file("bin/ptm.sh")
 PKG = get_prophosqua_install_stamp()
 KINASE, KINASE_SOURCES = get_kinase_mudata_files() if RUN_KINASE else ("", [])
@@ -32,11 +32,11 @@ if RUN_KINASE:
         f"{directory}/PTMSEA/PTMSEA_{a.upper()}.html",
         f"{directory}/KinaseLib/Analysis_KinaseLib_{a.upper()}.html",
         f"{directory}/KinaseLib/Analysis_MEA.html")]
-if RUN_PTM3D:
-    REPORTS += [f"{directory}/ptm3d/index.html" for directory in DIRECTORIES.values()]
+if RUN_PROPTM3D:
+    REPORTS += [f"{directory}/proptm3d/index.html" for directory in DIRECTORIES.values()]
 DELIVERY = [f"{DIR_OUT}/PTM_results.xlsx", f"{DIR_OUT}/PTM_results.rds"]
-DELIVERY += [f"{DIRECTORIES[a]}/{value['xlsx_input']}" for a, value in ANALYSES.items()]
-DELIVERY += [f"{DIRECTORIES[a]}/{value['xlsx_input'].removesuffix('.xlsx')}.rds" for a, value in ANALYSES.items()]
+DELIVERY += [f"{DIRECTORIES[a]}/{value['xlsx_output']}" for a, value in ANALYSES.items()]
+DELIVERY += [f"{DIRECTORIES[a]}/{value['xlsx_output'].removesuffix('.xlsx')}.rds" for a, value in ANALYSES.items()]
 DELIVERY += [f"{DIRECTORIES['dpu']}/combined_test_diff.rds",
              f"{DIRECTORIES['cf']}/CorrectFirst_intensities_wide.xlsx",
              f"{DIRECTORIES['cf']}/CorrectFirst_intensities_file_annotation.xlsx"]
@@ -187,19 +187,20 @@ for analysis, directory in DIRECTORIES.items():
                     "bash {input.wrapper:q} render --report {params.template:q} --output_file {params.filename:q} "
                     "--output_dir {params.folder:q} --intermediates_dir {output.html:q}.render "
                     "input_h5mu={input.h5mu:q} analysis_type={params.analysis:q} {params.extra} > {log:q} 2>&1"
-    if RUN_PTM3D:
+    if RUN_PROPTM3D:
         rule:
-            name: f"ptm3d_{analysis}"
+            name: f"proptm3d_{analysis}"
             input: h5mu=FINAL
-            output: html=f"{directory}/ptm3d/index.html"
-            log: f"{directory}/logs/ptm3d.log"
+            output: html=f"{directory}/proptm3d/index.html"
+            log: f"{directory}/logs/proptm3d.log"
             params:
-                folder=f"{directory}/ptm3d", sheet=analysis.upper(),
-                repo=PTM3D.get("repo", "git+https://github.com/prolfqua/ptm3d"),
-                maximum=f"--max_proteins {PTM3D['max_proteins']}" if PTM3D.get("max_proteins") else ""
+                folder=f"{directory}/proptm3d", sheet=analysis.upper(), fdr=config["fdr"],
+                repo=PROPTM3D.get("repo", "git+https://github.com/prolfqua/proptm3d"),
+                maximum=f"--max_proteins {PROPTM3D['max_proteins']}" if PROPTM3D.get("max_proteins") else ""
             shell:
-                "uv tool run --from {params.repo:q} ptm3d --input {input.h5mu:q} --sheet {params.sheet:q} "
-                "--output_dir {params.folder:q} --enrichment {input.h5mu:q} --no-html {params.maximum} > {log:q} 2>&1"
+                "uv tool run --from {params.repo:q} proptm3d --input {input.h5mu:q} --sheet {params.sheet:q} "
+                "--fdr {params.fdr} --output_dir {params.folder:q} --enrichment {input.h5mu:q} --no-html "
+                "{params.maximum} > {log:q} 2>&1"
 
 rule top_index:
     input: h5mu=FINAL, reports=REPORTS, wrapper=PTM, script=CMD["render"], package=PKG,
@@ -241,8 +242,8 @@ rule kinaselib_all:
     input: [f"{DIRECTORIES[a]}/KinaseLib/Analysis_KinaseLib_{a.upper()}.html" for a in ANALYSES] if RUN_KINASE else []
 rule vis_mea_all:
     input: [f"{directory}/KinaseLib/Analysis_MEA.html" for directory in DIRECTORIES.values()] if RUN_KINASE else []
-rule ptm3d_all:
-    input: [f"{directory}/ptm3d/index.html" for directory in DIRECTORIES.values()] if RUN_PTM3D else []
+rule proptm3d_all:
+    input: [f"{directory}/proptm3d/index.html" for directory in DIRECTORIES.values()] if RUN_PROPTM3D else []
 rule clean:
     shell: "snakemake --delete-all-output"
 

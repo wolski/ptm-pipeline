@@ -84,19 +84,19 @@ def generate_config(
             "dpa": {
                 "sheet": "DPA",
                 "subdir": "PTM_DPA",
-                "xlsx_input": "Result_DPA.xlsx",
+                "xlsx_output": "Result_DPA.xlsx",
                 "stat_column": "statistic.site",
             },
             "dpu": {
                 "sheet": "DPU",
                 "subdir": "PTM_DPU",
-                "xlsx_input": "Result_DPU.xlsx",
+                "xlsx_output": "Result_DPU.xlsx",
                 "stat_column": "statistic.site",
             },
             "cf": {
                 "sheet": "CF",
                 "subdir": "PTM_CF_DPU",
-                "xlsx_input": "CorrectFirst_PTM_usage_results.xlsx",
+                "xlsx_output": "CorrectFirst_PTM_usage_results.xlsx",
                 "stat_column": "statistic.site",
             },
         },
@@ -124,10 +124,10 @@ def generate_config(
             "mea": 4,
         },
 
-        # ptm3d 3D visualization (reads final MuData and embedded enrichment)
-        "ptm3d": {
+        # proptm3d 3D visualization (reads final MuData and embedded enrichment)
+        "proptm3d": {
             "run": True,
-            "repo": "git+https://github.com/prolfqua/ptm3d",
+            "repo": "git+https://github.com/prolfqua/proptm3d",
             # null: every protein with a significant site; set a number to cap.
             "max_proteins": None,
         },

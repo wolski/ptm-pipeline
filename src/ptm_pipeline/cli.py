@@ -193,6 +193,25 @@ def update(
         raise SystemExit(1)
 
     configuration = yaml.safe_load(config_file.read_text())
+
+    # The key names the workbook export_delivery writes, not an input it reads.
+    renamed = [
+        analysis
+        for analysis, settings in configuration.get("analyses", {}).items()
+        if "xlsx_input" in settings
+    ]
+    for analysis in renamed:
+        settings = configuration["analyses"][analysis]
+        settings["xlsx_output"] = settings.pop("xlsx_input")
+
+    # The 3D structure tool was renamed from ptm3d to proptm3d.
+    renamed_tool = "ptm3d" in configuration and "proptm3d" not in configuration
+    if renamed_tool:
+        configuration["proptm3d"] = configuration.pop("ptm3d")
+        repo = configuration["proptm3d"].get("repo", "")
+        if repo.endswith("/ptm3d"):
+            configuration["proptm3d"]["repo"] = repo[: -len("/ptm3d")] + "/proptm3d"
+
     additions = {}
     for key, dea_key in (("enriched_h5ad", "phospho_dea_dir"), ("total_h5ad", "protein_dea_dir")):
         if key in configuration:
@@ -207,7 +226,11 @@ def update(
     copied = copy_template_files(directory, dry_run=dry_run)
     for key, value in additions.items():
         console.print(f"  {'Would add' if dry_run else 'Added'}: {key}: {value}")
-    if additions and not dry_run:
+    for analysis in renamed:
+        console.print(f"  {'Would rename' if dry_run else 'Renamed'}: analyses.{analysis}.xlsx_input -> xlsx_output")
+    if renamed_tool:
+        console.print(f"  {'Would rename' if dry_run else 'Renamed'}: ptm3d -> proptm3d")
+    if (additions or renamed or renamed_tool) and not dry_run:
         write_config(configuration | additions, config_file)
 
     action = "Would update" if dry_run else "Updated"

@@ -1,5 +1,6 @@
 # ptm-pipeline 0.3.0
 
+- Rename the optional 3D report integration to proptm3d, and use `xlsx_output` for terminal workbook exports; `ptm-pipeline update` migrates existing configurations.
 - Install the current MuData, report-template, and enrichment R dependencies before building prophosqua in the pipeline image, then build prophosqua without asking `remotes` to reinterpret the installed Bioconductor metadata.
 - Preserve the native kinase-library MEA result as the same portable GSEA JSON
   used by the R enrichment methods, including ranked values, substrate sets,

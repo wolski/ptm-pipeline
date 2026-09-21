@@ -67,13 +67,13 @@ flowchart TB
     GSEA --> FINAL
     MEA --> FINAL
     STATS --> FINAL
-    FINAL --> REPORTS["All reports, ptm3d, index"]
+    FINAL --> REPORTS["All reports, proptm3d, index"]
     REPORTS --> EXPORT["Terminal Excel / RDS exports"]
     FINAL --> EXPORT
     EXPORT --> ZIP["Archives"]
 ```
 
-Import reads both schema 2.0.0 DEA artifacts and their stored design and contrasts. All persisted analysis handoffs thereafter are MuData. The three enrichment branches run for DPA, DPU, and CorrectFirst. Reports and ptm3d read only final MuData, including its embedded enrichment documents; Excel/RDS exports run after reports.
+Import reads both schema 2.0.0 DEA artifacts and their stored design and contrasts. All persisted analysis handoffs thereafter are MuData. The three enrichment branches run for DPA, DPU, and CorrectFirst. Reports and proptm3d read only final MuData, including its embedded enrichment documents; Excel/RDS exports run after reports.
 
 `snakemake -j1 data` builds final MuData. `snakemake -j1 reports` renders from it. `snakemake -j1 all` adds terminal delivery exports and archives. R commands run through the installed prophosqua `ptm.sh`; Python kinase calculations use `ptm-kinase-mudata`, installed with ptm-pipeline. Both declare their installed source dependencies.
 

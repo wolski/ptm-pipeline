@@ -222,13 +222,13 @@ def build_analysis_lookups(dir_out: str, analyses_config: dict) -> dict:
         - types: List of analysis type keys
         - dirs: Dict mapping analysis -> output directory
         - sheets: Dict mapping analysis -> Excel sheet name
-        - xlsx_inputs: Dict mapping analysis -> input Excel filename
+        - xlsx_outputs: Dict mapping analysis -> exported Excel filename
         - stat_columns: Dict mapping analysis -> statistic column name
     """
     return {
         "types": list(analyses_config.keys()),
         "dirs": {k: f"{dir_out}/{v['subdir']}" for k, v in analyses_config.items()},
         "sheets": {k: v["sheet"] for k, v in analyses_config.items()},
-        "xlsx_inputs": {k: v["xlsx_input"] for k, v in analyses_config.items()},
+        "xlsx_outputs": {k: v["xlsx_output"] for k, v in analyses_config.items()},
         "stat_columns": {k: v["stat_column"] for k, v in analyses_config.items()},
     }
