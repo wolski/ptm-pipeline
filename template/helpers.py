@@ -9,30 +9,41 @@ import os
 import shutil
 import subprocess
 from functools import lru_cache
+from html import escape
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
 
 
-def create_results_archive(folder: str, output: str) -> None:
-    """Package delivery files while omitting intermediate enrichment stages."""
-    root = Path(folder)
+def create_report_index(output: str, reports: list[str]) -> None:
+    """Link the two rendered QMD reports without running another renderer."""
+    titles = {"ptm_statistics.html": "PTM statistics", "ptm_enrichment.html": "PTM enrichment"}
+    links = "\n".join(
+        f'<li><a href="{escape(Path(report).name)}">{titles[Path(report).name]}</a></li>'
+        for report in reports
+    )
+    page = (
+        '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        '<title>PTM reports</title></head><body><h1>PTM reports</h1><ul>'
+        f'{links}</ul></body></html>\n'
+    )
+    destination = Path(output)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(page)
+
+
+def create_results_archive(folder: str, output: str, members: list[str]) -> None:
+    """Package only declared final outputs, excluding stale legacy reports."""
+    root = Path(folder).resolve()
     destination = Path(output)
     temporary = destination.with_name(destination.name + ".tmp")
-    stages = {"PTMSEA", "KinaseInputs", "KinaseAssignments", "MotifEnrichment", "KinaseGSEA", "MEA"}
     try:
         with ZipFile(temporary, "w", allowZip64=True) as archive:
-            for path in sorted(root.rglob("*")):
+            for member in sorted(set(members)):
+                path = Path(member).resolve()
                 relative = path.relative_to(root)
-                if not path.is_file() or "logs" in relative.parts or "ptm3d" in relative.parts:
-                    continue
-                if any(part.endswith(".render") for part in relative.parts):
-                    continue
-                if path.name.startswith(".h5mu-"):
-                    continue
-                if len(relative.parts) == 2 and path.suffix == ".cbor" and path.stem in stages:
-                    continue
-                if path.suffix == ".h5mu" and path.name != "PTM_results.h5mu":
-                    continue
+                if not path.is_file():
+                    raise FileNotFoundError(path)
                 compression = ZIP_STORED if path.suffix == ".h5mu" else ZIP_DEFLATED
                 archive.write(path, arcname=str(Path(root.name) / relative), compress_type=compression)
         os.replace(temporary, destination)
@@ -87,13 +98,11 @@ def get_prophosqua_report(name: str) -> str:
     """Resolve one of prophosqua's report templates.
 
     Where a template lives is the package's business, not the pipeline's: the
-    analysis reports are prophosqua's vignettes and install into its `doc/`,
-    while the templates that are not analyses (the index page) ship under
-    `inst/application`. Asking `prophosqua:::report_file()` keeps that rule
-    stated once, in the package, instead of copied here where it could drift.
+    analysis QMDs are prophosqua's vignettes and install into its `doc/`.
+    Asking `prophosqua:::report_file()` keeps that rule in the package.
 
     Args:
-        name: Template file name, e.g. "Analysis_seqlogo.Rmd"
+        name: Template file name, e.g. "ptm_statistics.qmd"
 
     Returns:
         Full path to the installed template
@@ -148,26 +157,6 @@ def get_prophosqua_install_stamp() -> str:
             "Install it with: make -C <prophosqua checkout> install"
         )
     return path
-
-
-def render_tmp_dir(analysis: str, step: str) -> str:
-    """Build the private intermediates directory of one R Markdown render.
-
-    knitr names its intermediate files after the input .Rmd, so several rules
-    rendering the same vignette for different analysis types must not share an
-    intermediates directory: with -j2 or more they would overwrite each other's
-    .knit.md and every report would end up with the content of whichever render
-    finished last. Giving each rule its own directory keeps the renders
-    independent.
-
-    Args:
-        analysis: Analysis type (e.g., "dpa")
-        step: Rule family (e.g., "vis_mea")
-
-    Returns:
-        Path to the intermediates directory for that rule
-    """
-    return f".render/{step}_{analysis}"
 
 
 def _dea_file(dea_dir: str, filename: str, description: str) -> str:

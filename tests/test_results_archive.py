@@ -3,37 +3,42 @@ from pathlib import Path
 from zipfile import ZipFile
 
 
-def test_results_archive_contains_only_final_h5mu(tmp_path):
+def test_results_archive_contains_only_declared_final_outputs(tmp_path):
     template = Path(__file__).resolve().parents[1] / "template" / "helpers.py"
     spec = importlib.util.spec_from_file_location("pipeline_helpers", template)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
     folder = tmp_path / "PTM_output"
-    (folder / "PTM_DPA" / "logs").mkdir(parents=True)
-    (folder / "PTM_DPA" / "report.html.render").mkdir()
     for relative in (
         "PTM_results.h5mu",
         "PTM_inputs.h5mu",
         "PTM_statistics.h5mu",
-        "PTM_DPA/PTMSEA.h5mu",
         "PTM_DPA/PTMSEA.cbor",
-        "PTM_DPA/proptm3d/data/catalog.cbor",
-        "PTM_DPA/ptm3d/data/catalog.cbor",
-        "PTM_DPA/report.html",
-        "PTM_DPA/logs/report.log",
-        "PTM_DPA/report.html.render/plot.png",
+        "PTM_DPA/Analysis_DPA_DPU.html",
+        "ptm_statistics.html",
+        "ptm_enrichment.html",
+        "PTM_results.xlsx",
     ):
         path = folder / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(relative)
+    reports = [str(folder / "ptm_statistics.html"), str(folder / "ptm_enrichment.html")]
+    index = folder / "index.html"
+    module.create_report_index(str(index), reports)
     archive_path = tmp_path / "results.zip"
-
-    module.create_results_archive(str(folder), str(archive_path))
+    module.create_results_archive(
+        str(folder), str(archive_path),
+        [str(folder / "PTM_results.h5mu"), str(folder / "PTM_results.xlsx"), str(index)] + reports,
+    )
 
     with ZipFile(archive_path) as archive:
         assert set(archive.namelist()) == {
             "PTM_output/PTM_results.h5mu",
-            "PTM_output/PTM_DPA/report.html",
-            "PTM_output/PTM_DPA/proptm3d/data/catalog.cbor",
+            "PTM_output/PTM_results.xlsx",
+            "PTM_output/index.html",
+            "PTM_output/ptm_statistics.html",
+            "PTM_output/ptm_enrichment.html",
         }
+        assert b"ptm_statistics.html" in archive.read("PTM_output/index.html")
+        assert b"ptm_enrichment.html" in archive.read("PTM_output/index.html")

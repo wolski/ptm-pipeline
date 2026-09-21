@@ -1,7 +1,8 @@
 # ptm-pipeline 0.3.0
 
-- Rename the optional 3D report integration to proptm3d, and use `xlsx_output` for terminal workbook exports; `ptm-pipeline update` migrates existing configurations.
-- Replace 18 full MuData enrichment handoffs with compact CBOR artifacts. The delivery archive includes only the final H5MU and excludes stage CBOR and obsolete stage H5MU files, while retaining the CBOR data required by proptm3d reports.
+- Render only the PTM statistics and enrichment Quarto reports from their MuData stages. A lightweight index links them; the delivery archive includes only declared final outputs, so stale legacy reports and proptm3d files are omitted.
+- Use `xlsx_output` for terminal workbook exports; `ptm-pipeline update` migrates existing configurations.
+- Replace 18 full MuData enrichment handoffs with compact CBOR artifacts. The delivery archive includes only the final H5MU and excludes stage CBOR and obsolete stage H5MU files.
 - Install the current MuData, report-template, and enrichment R dependencies before building prophosqua in the pipeline image, then build prophosqua without asking `remotes` to reinterpret the installed Bioconductor metadata.
 - Preserve the native kinase-library MEA result as the same portable GSEA JSON
   used by the R enrichment methods, including ranked values, substrate sets,

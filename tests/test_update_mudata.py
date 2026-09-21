@@ -36,7 +36,6 @@ class UpdateMuDataTests(unittest.TestCase):
                 current = path.read_text()
                 update(root)
                 self.assertEqual(path.read_text(), current)
-
     def test_update_renames_xlsx_input_to_xlsx_output(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
@@ -69,43 +68,3 @@ class UpdateMuDataTests(unittest.TestCase):
                 current = path.read_text()
                 update(root)
                 self.assertEqual(path.read_text(), current)
-
-    def test_update_renames_ptm3d_to_proptm3d(self):
-        with TemporaryDirectory() as directory:
-            root = Path(directory)
-            config = {"dir_out": "chosen_output",
-                      "phospho_dea_dir": "site", "protein_dea_dir": "protein",
-                      "enriched_h5ad": "site/Results_WU_example/AnnData.h5ad",
-                      "total_h5ad": "protein/Results_WU_example/AnnData.h5ad",
-                      "ptm3d": {"run": True, "repo": "git+https://github.com/prolfqua/ptm3d",
-                                "max_proteins": 20}}
-            path = root / "ptm_config.yaml"
-            original = yaml.safe_dump(config)
-            path.write_text(original)
-            with patch("ptm_pipeline.init.copy_template_files", return_value=[]):
-                update(root, dry_run=True)
-                self.assertEqual(path.read_text(), original)
-                update(root)
-                migrated = yaml.safe_load(path.read_text())
-                self.assertNotIn("ptm3d", migrated)
-                self.assertEqual(migrated["proptm3d"],
-                                 {"run": True, "repo": "git+https://github.com/prolfqua/proptm3d",
-                                  "max_proteins": 20})
-                current = path.read_text()
-                update(root)
-                self.assertEqual(path.read_text(), current)
-
-    def test_update_keeps_a_local_proptm3d_checkout_path(self):
-        with TemporaryDirectory() as directory:
-            root = Path(directory)
-            config = {"dir_out": "chosen_output",
-                      "phospho_dea_dir": "site", "protein_dea_dir": "protein",
-                      "enriched_h5ad": "site/Results_WU_example/AnnData.h5ad",
-                      "total_h5ad": "protein/Results_WU_example/AnnData.h5ad",
-                      "ptm3d": {"run": True, "repo": "/home/user/checkouts/ptm3d"}}
-            path = root / "ptm_config.yaml"
-            path.write_text(yaml.safe_dump(config))
-            with patch("ptm_pipeline.init.copy_template_files", return_value=[]):
-                update(root)
-                migrated = yaml.safe_load(path.read_text())
-                self.assertEqual(migrated["proptm3d"]["repo"], "/home/user/checkouts/proptm3d")

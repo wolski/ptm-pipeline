@@ -1,20 +1,18 @@
-# PTM pipeline: all persisted analysis handoffs are complete MuData stages.
+# PTM pipeline: MuData analysis stages with CBOR enrichment handoffs.
 import json
 import shlex
 from pathlib import Path
-from helpers import create_results_archive, get_prophosqua_file, get_prophosqua_report, get_prophosqua_install_stamp, get_kinase_cbor_files
+from helpers import create_report_index, create_results_archive, get_prophosqua_file, get_prophosqua_report, get_prophosqua_install_stamp, get_kinase_cbor_files
 
 configfile: "ptm_config.yaml"
 
 DIR_OUT = config["dir_out"]
 ANALYSES = config["analyses"]
 RUN_KINASE = config.get("run_kinase", True)
-PROPTM3D = config.get("proptm3d", {})
-RUN_PROPTM3D = PROPTM3D.get("run", True) and RUN_KINASE
 PTM = get_prophosqua_file("bin/ptm.sh")
 PKG = get_prophosqua_install_stamp()
 KINASE, KINASE_SOURCES = get_kinase_cbor_files() if RUN_KINASE else ("", [])
-COMMANDS = ("import_h5mu", "ptm_h5mu", "enrich_cbor", "assemble_h5mu", "export_h5mu", "render", "dpu_overview")
+COMMANDS = ("import_h5mu", "ptm_h5mu", "enrich_cbor", "assemble_h5mu", "export_h5mu", "render")
 CMD = {name: get_prophosqua_file(f"CMD_{name.upper()}.R") for name in COMMANDS}
 INPUTS = f"{DIR_OUT}/PTM_inputs.h5mu"
 STATISTICS = f"{DIR_OUT}/PTM_statistics.h5mu"
@@ -24,17 +22,10 @@ DEA_ARCHIVES = {name: f"{Path(config[f'{name}_dea_dir']).name}.zip" for name in 
 STAGES = ("PTMSEA", "KinaseInputs", "KinaseAssignments", "MotifEnrichment", "KinaseGSEA", "MEA")
 BRANCHES = ([f"{DIRECTORIES[a]}/{stage}.cbor" for a in ANALYSES for stage in STAGES]
             if RUN_KINASE else [])
-REPORTS = [f"{DIRECTORIES['dpa']}/Analysis_DPA_DPU.html", f"{DIRECTORIES['cf']}/Analysis_CorrectFirst_DEA.html",
-           f"{DIRECTORIES['dpu']}/Result_DPU.html"]
-REPORTS += [f"{directory}/{report}.html" for directory in DIRECTORIES.values()
-            for report in ("Analysis_n_to_c", "Analysis_seqlogo")]
-if RUN_KINASE:
-    REPORTS += [path for a, directory in DIRECTORIES.items() for path in (
-        f"{directory}/PTMSEA/PTMSEA_{a.upper()}.html",
-        f"{directory}/KinaseLib/Analysis_KinaseLib_{a.upper()}.html",
-        f"{directory}/KinaseLib/Analysis_MEA.html")]
-if RUN_PROPTM3D:
-    REPORTS += [f"{directory}/proptm3d/index.html" for directory in DIRECTORIES.values()]
+STATISTICS_REPORT = f"{DIR_OUT}/ptm_statistics.html"
+ENRICHMENT_REPORT = f"{DIR_OUT}/ptm_enrichment.html"
+REPORTS = [STATISTICS_REPORT] + ([ENRICHMENT_REPORT] if RUN_KINASE else [])
+INDEX = f"{DIR_OUT}/index.html"
 DELIVERY = [f"{DIR_OUT}/PTM_results.xlsx", f"{DIR_OUT}/PTM_results.rds"]
 DELIVERY += [f"{DIRECTORIES[a]}/{value['xlsx_output']}" for a, value in ANALYSES.items()]
 DELIVERY += [f"{DIRECTORIES[a]}/{value['xlsx_output'].removesuffix('.xlsx')}.rds" for a, value in ANALYSES.items()]
@@ -55,7 +46,7 @@ rule all:
         FINAL,
         REPORTS,
         DELIVERY,
-        f"{DIR_OUT}/index.html",
+        INDEX,
         f"{DIR_OUT}.zip",
         DEA_ARCHIVES["phospho"],
         DEA_ARCHIVES["protein"]
@@ -64,7 +55,7 @@ rule data:
     input: FINAL
 
 rule reports:
-    input: REPORTS, f"{DIR_OUT}/index.html"
+    input: REPORTS, INDEX
 
 rule import_inputs:
     input:
@@ -144,116 +135,58 @@ rule assemble_results:
         "bash {input.wrapper:q} assemble_h5mu --statistics {input.statistics:q} --output {output.h5mu:q} "
         "{input.branches:q} > {log:q} 2>&1"
 
-for analysis, template in (("dpa", "Analysis_DPA_DPU.Rmd"), ("cf", "Analysis_CorrectFirst_DEA.Rmd")):
-    rule:
-        name: f"report_statistics_{analysis}"
-        input: h5mu=FINAL, wrapper=PTM, script=CMD["render"], package=PKG, template=get_prophosqua_report(template)
-        output: html=f"{DIRECTORIES[analysis]}/{template.replace('.Rmd', '.html')}"
-        log: f"{DIRECTORIES[analysis]}/logs/report_statistics.log"
-        params: template=template, folder=DIRECTORIES[analysis], filename=template.replace(".Rmd", ".html")
+rule render_statistics:
+    input: h5mu=STATISTICS, wrapper=PTM, script=CMD["render"], package=PKG,
+           template=get_prophosqua_report("ptm_statistics.qmd")
+    output: html=STATISTICS_REPORT
+    log: f"{DIR_OUT}/logs/ptm_statistics.log"
+    params: folder=DIR_OUT, fdr=config["fdr"], fc=config["log2fc"]
+    shell:
+        "bash {input.wrapper:q} render --report ptm_statistics.qmd "
+        "--output_file ptm_statistics.html --output_dir {params.folder:q} "
+        "input_h5mu={input.h5mu:q} fdr_threshold={params.fdr} "
+        "fold_change_threshold={params.fc} > {log:q} 2>&1"
+
+if RUN_KINASE:
+    rule render_enrichment:
+        input: h5mu=FINAL, wrapper=PTM, script=CMD["render"], package=PKG,
+               template=get_prophosqua_report("ptm_enrichment.qmd")
+        output: html=ENRICHMENT_REPORT
+        log: f"{DIR_OUT}/logs/ptm_enrichment.log"
+        params: folder=DIR_OUT, fdr=config["fdr"]
         shell:
-            "bash {input.wrapper:q} render --report {params.template:q} --output_dir {params.folder:q} "
-            "--output_file {params.filename:q} --intermediates_dir {output.html:q}.render "
-            "input_h5mu={input.h5mu:q} > {log:q} 2>&1"
-
-rule dpu_overview:
-    input: h5mu=FINAL, wrapper=PTM, script=CMD["dpu_overview"], package=PKG
-    output: html=f"{DIRECTORIES['dpu']}/Result_DPU.html"
-    log: f"{DIRECTORIES['dpu']}/logs/dpu_overview.log"
-    params: folder=DIRECTORIES["dpu"]
-    shell: "bash {input.wrapper:q} dpu_overview --input_h5mu {input.h5mu:q} --output_dir {params.folder:q} > {log:q} 2>&1"
-
-for analysis, directory in DIRECTORIES.items():
-    for report in ("Analysis_n_to_c", "Analysis_seqlogo"):
-        rule:
-            name: f"{report.lower()}_{analysis}"
-            input: h5mu=FINAL, wrapper=PTM, script=CMD["render"], package=PKG, template=get_prophosqua_report(f"{report}.Rmd")
-            output: html=f"{directory}/{report}.html"
-            log: f"{directory}/logs/{report}.log"
-            params:
-                template=f"{report}.Rmd", filename=f"{report}.html", folder=directory,
-                sheet=analysis.upper(), analysis=analysis, fdr=config["fdr"], fc=config["log2fc"],
-                extra=(f"analysis_type={analysis} max_fig={config['max_fig']} output_dir={shlex.quote(directory)}")
-                    if report == "Analysis_n_to_c" else ""
-            shell:
-                "bash {input.wrapper:q} render --report {params.template:q} --output_file {params.filename:q} "
-                "--output_dir {params.folder:q} --intermediates_dir {output.html:q}.render "
-                "input_h5mu={input.h5mu:q} sheet={params.sheet:q} fdr={params.fdr} fc={params.fc} {params.extra} > {log:q} 2>&1"
-    if RUN_KINASE:
-        for template, relative in (("Analysis_PTMSEA.Rmd", f"PTMSEA/PTMSEA_{analysis.upper()}.html"),
-                                   ("Analysis_KinaseLibrary.Rmd", f"KinaseLib/Analysis_KinaseLib_{analysis.upper()}.html"),
-                                   ("Analysis_MEA.Rmd", "KinaseLib/Analysis_MEA.html")):
-            rule:
-                name: f"report_{template.removeprefix('Analysis_').removesuffix('.Rmd').lower()}_{analysis}"
-                input: h5mu=FINAL, wrapper=PTM, script=CMD["render"], package=PKG, template=get_prophosqua_report(template)
-                output: html=f"{directory}/{relative}"
-                log: f"{directory}/logs/{template}.log"
-                params:
-                    template=template, folder=f"{directory}/{relative.rsplit('/', 1)[0]}",
-                    filename=relative.rsplit("/", 1)[-1], analysis=analysis.upper(),
-                    extra=("output_dir=" + shlex.quote(f"{directory}/{relative.rsplit('/', 1)[0]}"))
-                        if template != "Analysis_MEA.Rmd" else ""
-                shell:
-                    "bash {input.wrapper:q} render --report {params.template:q} --output_file {params.filename:q} "
-                    "--output_dir {params.folder:q} --intermediates_dir {output.html:q}.render "
-                    "input_h5mu={input.h5mu:q} analysis_type={params.analysis:q} {params.extra} > {log:q} 2>&1"
-    if RUN_PROPTM3D:
-        rule:
-            name: f"proptm3d_{analysis}"
-            input: h5mu=FINAL
-            output: html=f"{directory}/proptm3d/index.html"
-            log: f"{directory}/logs/proptm3d.log"
-            params:
-                folder=f"{directory}/proptm3d", sheet=analysis.upper(), fdr=config["fdr"],
-                repo=PROPTM3D.get("repo", "git+https://github.com/prolfqua/proptm3d"),
-                maximum=f"--max_proteins {PROPTM3D['max_proteins']}" if PROPTM3D.get("max_proteins") else ""
-            shell:
-                "uv tool run --from {params.repo:q} proptm3d --input {input.h5mu:q} --sheet {params.sheet:q} "
-                "--fdr {params.fdr} --output_dir {params.folder:q} --enrichment {input.h5mu:q} --no-html "
-                "{params.maximum} > {log:q} 2>&1"
+            "bash {input.wrapper:q} render --report ptm_enrichment.qmd "
+            "--output_file ptm_enrichment.html --output_dir {params.folder:q} "
+            "input_h5mu={input.h5mu:q} fdr_threshold={params.fdr} > {log:q} 2>&1"
 
 rule top_index:
-    input: h5mu=FINAL, reports=REPORTS, wrapper=PTM, script=CMD["render"], package=PKG,
-           template=get_prophosqua_report("create_top_index.Rmd")
-    output: html=f"{DIR_OUT}/index.html"
-    log: f"{DIR_OUT}/logs/top_index.log"
-    params: folder=DIR_OUT
-    shell:
-        "bash {input.wrapper:q} render --report create_top_index.Rmd --output_file index.html "
-        "--output_dir {params.folder:q} --intermediates_dir {output.html:q}.render "
-        "folder={params.folder:q} input_h5mu={input.h5mu:q} > {log:q} 2>&1"
+    input: reports=REPORTS
+    output: html=INDEX
+    run:
+        create_report_index(output.html, input.reports)
 
 rule export_delivery:
-    input: h5mu=FINAL, reports=REPORTS, index=f"{DIR_OUT}/index.html", wrapper=PTM, script=CMD["export_h5mu"], package=PKG
+    input: h5mu=FINAL, reports=REPORTS, index=INDEX, wrapper=PTM, script=CMD["export_h5mu"], package=PKG
     output: DELIVERY
     log: f"{DIR_OUT}/logs/export_delivery.log"
     params: folder=DIR_OUT
     shell: "bash {input.wrapper:q} export_h5mu --input {input.h5mu:q} --output_dir {params.folder:q} > {log:q} 2>&1"
 
 rule zip:
-    input: delivery=DELIVERY, h5mu=FINAL, reports=REPORTS, index=f"{DIR_OUT}/index.html"
+    input: delivery=DELIVERY, h5mu=FINAL, reports=REPORTS, index=INDEX
     output: results=f"{DIR_OUT}.zip", phospho=DEA_ARCHIVES["phospho"], protein=DEA_ARCHIVES["protein"]
     params: folder=DIR_OUT, phospho=config["phospho_dea_dir"], protein=config["protein_dea_dir"]
     run:
-        create_results_archive(params.folder, output.results)
+        create_results_archive(
+            params.folder, output.results,
+            list(input.delivery) + [input.h5mu] + list(input.reports) + [input.index]
+        )
         shell("zip -r {output.phospho:q} {params.phospho:q} && zip -r {output.protein:q} {params.protein:q}")
 
 rule dea:
     input: STATISTICS
 rule combine:
     input: FINAL
-rule n_to_c_all:
-    input: [f"{directory}/Analysis_n_to_c.html" for directory in DIRECTORIES.values()]
-rule seqlogo_all:
-    input: [f"{directory}/Analysis_seqlogo.html" for directory in DIRECTORIES.values()]
-rule ptmsea_all:
-    input: [f"{DIRECTORIES[a]}/PTMSEA/PTMSEA_{a.upper()}.html" for a in ANALYSES] if RUN_KINASE else []
-rule kinaselib_all:
-    input: [f"{DIRECTORIES[a]}/KinaseLib/Analysis_KinaseLib_{a.upper()}.html" for a in ANALYSES] if RUN_KINASE else []
-rule vis_mea_all:
-    input: [f"{directory}/KinaseLib/Analysis_MEA.html" for directory in DIRECTORIES.values()] if RUN_KINASE else []
-rule proptm3d_all:
-    input: [f"{directory}/proptm3d/index.html" for directory in DIRECTORIES.values()] if RUN_PROPTM3D else []
 rule clean:
     shell: "snakemake --delete-all-output"
 

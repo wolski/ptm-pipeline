@@ -124,13 +124,6 @@ def generate_config(
             "mea": 4,
         },
 
-        # proptm3d 3D visualization (reads final MuData and embedded enrichment)
-        "proptm3d": {
-            "run": True,
-            "repo": "git+https://github.com/prolfqua/proptm3d",
-            # null: every protein with a significant site; set a number to cap.
-            "max_proteins": None,
-        },
 
         # PTMsigDB preprocessing
         "ptmsigdb": {

@@ -85,20 +85,21 @@ The input boundary reads `enriched_h5ad` and `total_h5ad` (prolfquapp schema 2.0
 
 ```text
 paired DEA AnnData → PTM_inputs.h5mu → PTM_statistics.h5mu
+                                       ├→ ptm_statistics.html
                                        ↓
                   PTMSEA / KinaseInputs / KinaseAssignments /
                          KinaseGSEA / MotifEnrichment / MEA (.cbor)
                                        ↓
                                PTM_results.h5mu
                                        ↓
-                        HTML reports, proptm3d, index
+                         ptm_enrichment.html, index
                                        ↓
                           terminal Excel/RDS exports
 ```
 
-Enrichment stages exchange compact CBOR artifacts while reading the shared `PTM_statistics.h5mu`; final assembly adds the nine JSON documents to `PTM_results.h5mu`. `make data` stops at final MuData; `make reports` renders from it; `make all` also exports delivery files and archives. The original statistics, joins, rank order, and enrichment algorithms are retained. `run_kinase: false` disables enrichment and proptm3d.
+Enrichment stages exchange CBOR artifacts while reading the shared `PTM_statistics.h5mu`; final assembly adds the nine JSON documents to `PTM_results.h5mu`. `ptm_statistics.qmd` renders once after DPA/DPU and CorrectFirst are complete; `ptm_enrichment.qmd` renders once after enrichment is assembled. Both read only MuData. `make data` stops at final MuData; `make reports` renders these two HTML files and a simple link page; `make all` also exports delivery files and archives. `run_kinase: false` skips enrichment and its report.
 
-For an existing project, run `ptm-pipeline update`. It adds missing `enriched_h5ad` and `total_h5ad` paths from the configured DEA directories and preserves existing settings. Optional `ptmsigdb.input_file` imports an existing RDS/GMT; otherwise the reference is downloaded during import. Install the current local prolfquapp, prophosqua, ptm-pipeline, and proptm3d versions together. Older container images do not contain this migration.
+For an existing project, run `ptm-pipeline update`. It adds missing `enriched_h5ad` and `total_h5ad` paths from the configured DEA directories and preserves existing settings. Optional `ptmsigdb.input_file` imports an existing RDS/GMT; otherwise the reference is downloaded during import. Install the current local prolfquapp, prophosqua, and ptm-pipeline versions together. Older container images do not contain this migration.
 
 ## Requirements
 
