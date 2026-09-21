@@ -20,7 +20,7 @@ all: ## Run the full pipeline
 data: ## Build final MuData with every enabled analysis
 	snakemake -s $(SNAKEFILE) --configfile $(CONFIG) -j$(CORES) data
 
-reports: ## Render the two MuData-backed Quarto reports before delivery export
+reports: ## Render statistics and three analysis-specific enrichment reports
 	snakemake -s $(SNAKEFILE) --configfile $(CONFIG) -j$(CORES) reports
 
 dry-run: ## Show what would be executed (dry-run)

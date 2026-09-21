@@ -45,6 +45,8 @@ class DiscoverAnnDataTest(unittest.TestCase):
         self.assertEqual(config["enriched_h5ad"], "")
         self.assertEqual(config["total_h5ad"], "")
         self.assertNotIn("annot_file", config)
+        self.assertEqual(config["gsea"]["max_size"], 500)
+        self.assertEqual(config["kinaselib"]["gsea_max_size"], 5000)
         self.assertFalse(check_file_exists(Path.cwd(), "missing input").passed)
 
 

@@ -23,8 +23,8 @@ STAGES = ("PTMSEA", "KinaseInputs", "KinaseAssignments", "MotifEnrichment", "Kin
 BRANCHES = ([f"{DIRECTORIES[a]}/{stage}.cbor" for a in ANALYSES for stage in STAGES]
             if RUN_KINASE else [])
 STATISTICS_REPORT = f"{DIR_OUT}/ptm_statistics.html"
-ENRICHMENT_REPORT = f"{DIR_OUT}/ptm_enrichment.html"
-REPORTS = [STATISTICS_REPORT] + ([ENRICHMENT_REPORT] if RUN_KINASE else [])
+ENRICHMENT_REPORTS = {name: f"{directory}/ptm_enrichment.html" for name, directory in DIRECTORIES.items()}
+REPORTS = [STATISTICS_REPORT] + (list(ENRICHMENT_REPORTS.values()) if RUN_KINASE else [])
 INDEX = f"{DIR_OUT}/index.html"
 DELIVERY = [f"{DIR_OUT}/PTM_results.xlsx", f"{DIR_OUT}/PTM_results.rds"]
 DELIVERY += [f"{DIRECTORIES[a]}/{value['xlsx_output']}" for a, value in ANALYSES.items()]
@@ -148,16 +148,19 @@ rule render_statistics:
         "fold_change_threshold={params.fc} > {log:q} 2>&1"
 
 if RUN_KINASE:
-    rule render_enrichment:
-        input: h5mu=FINAL, wrapper=PTM, script=CMD["render"], package=PKG,
-               template=get_prophosqua_report("ptm_enrichment.qmd")
-        output: html=ENRICHMENT_REPORT
-        log: f"{DIR_OUT}/logs/ptm_enrichment.log"
-        params: folder=DIR_OUT, fdr=config["fdr"]
-        shell:
-            "bash {input.wrapper:q} render --report ptm_enrichment.qmd "
-            "--output_file ptm_enrichment.html --output_dir {params.folder:q} "
-            "input_h5mu={input.h5mu:q} fdr_threshold={params.fdr} > {log:q} 2>&1"
+    for analysis, directory in DIRECTORIES.items():
+        rule:
+            name: f"render_enrichment_{analysis}"
+            input: h5mu=FINAL, wrapper=PTM, script=CMD["render"], package=PKG,
+                   template=get_prophosqua_report("ptm_enrichment.qmd")
+            output: html=ENRICHMENT_REPORTS[analysis]
+            log: f"{directory}/logs/ptm_enrichment.log"
+            params: folder=directory, analysis=analysis.upper(), fdr=config["fdr"]
+            shell:
+                "bash {input.wrapper:q} render --report ptm_enrichment.qmd "
+                "--output_file ptm_enrichment.html --output_dir {params.folder:q} "
+                "input_h5mu={input.h5mu:q} analysis={params.analysis:q} "
+                "fdr_threshold={params.fdr} > {log:q} 2>&1"
 
 rule top_index:
     input: reports=REPORTS

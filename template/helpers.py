@@ -15,10 +15,16 @@ from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
 
 
 def create_report_index(output: str, reports: list[str]) -> None:
-    """Link the two rendered QMD reports without running another renderer."""
-    titles = {"ptm_statistics.html": "PTM statistics", "ptm_enrichment.html": "PTM enrichment"}
+    """Link the statistics report and one enrichment report per analysis."""
+    titles = {"PTM_DPA": "DPA", "PTM_DPU": "DPU", "PTM_CF_DPU": "CorrectFirst DPU"}
+    destination = Path(output)
+    def label(report: str) -> str:
+        path = Path(report)
+        return "PTM statistics" if path.name == "ptm_statistics.html" else f"{titles[path.parent.name]} enrichment"
+
     links = "\n".join(
-        f'<li><a href="{escape(Path(report).name)}">{titles[Path(report).name]}</a></li>'
+        f'<li><a href="{escape(os.path.relpath(report, destination.parent))}">'
+        f'{escape(label(report))}</a></li>'
         for report in reports
     )
     page = (
@@ -27,7 +33,6 @@ def create_report_index(output: str, reports: list[str]) -> None:
         '<title>PTM reports</title></head><body><h1>PTM reports</h1><ul>'
         f'{links}</ul></body></html>\n'
     )
-    destination = Path(output)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(page)
 

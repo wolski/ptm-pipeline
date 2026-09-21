@@ -104,7 +104,7 @@ def generate_config(
         # Contrasts for MEA analysis
         "contrasts": contrasts,
 
-        # GSEA parameters (shared by PTM-SEA and KinaseLib GSEA)
+        # GSEA parameters; KinaseLib has its own larger maximum set size.
         "gsea": {
             "min_size": 10,
             "max_size": 500,
@@ -117,6 +117,7 @@ def generate_config(
             "kin_type": "ser_thr",
             "threshold": 95,
             "permutations": 1000,
+            "gsea_max_size": 5000,
         },
 
         # Thread settings

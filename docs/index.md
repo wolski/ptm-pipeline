@@ -69,7 +69,7 @@ flowchart TB
     GSEA --> FINAL
     MEA --> FINAL
     STATS --> FINAL
-    FINAL --> ENRICH_REPORT["ptm_enrichment.html"]
+    FINAL --> ENRICH_REPORT["DPA, DPU, CF enrichment HTMLs"]
     STATS_REPORT --> INDEX["index.html"]
     ENRICH_REPORT --> INDEX
     INDEX --> EXPORT["Terminal Excel / RDS exports"]
@@ -77,7 +77,7 @@ flowchart TB
     EXPORT --> ZIP["Archives"]
 ```
 
-Import reads both schema 2.0.0 DEA artifacts and their stored design and contrasts. `PTM_statistics.h5mu` is the shared read-only enrichment input. CBOR files carry each preparation and enrichment result through Snakemake; final assembly writes the nine validated JSON documents into `PTM_results.h5mu`. The statistics QMD reads the statistics H5MU once, and the enrichment QMD reads the final H5MU once. The index only links these two reports; Excel/RDS exports run after both.
+Import reads both schema 2.0.0 DEA artifacts and their stored design and contrasts. `PTM_statistics.h5mu` is the shared read-only enrichment input. CBOR files carry each preparation and enrichment result through Snakemake; final assembly writes the nine validated JSON documents into `PTM_results.h5mu`. The statistics QMD reads the statistics H5MU once. The enrichment QMD reads the final H5MU separately for DPA, DPU, and CorrectFirst, producing one HTML per analysis. The index links all four reports; Excel/RDS exports run after them.
 
 `snakemake -j1 data` builds final MuData. `snakemake -j1 reports` renders from it. `snakemake -j1 all` adds terminal delivery exports and archives. R commands run through the installed prophosqua `ptm.sh`; Python kinase calculations use `ptm-kinase-cbor`, installed with ptm-pipeline. Both declare their installed source dependencies.
 

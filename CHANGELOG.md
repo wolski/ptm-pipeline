@@ -1,5 +1,6 @@
 # ptm-pipeline 0.3.0
 
+- Render one enrichment report per DPA, DPU, and CorrectFirst analysis from the same parameterized QMD, and link all three from the index. Set a separate 5000-site maximum for kinase substrate GSEA; the 500-site PTM-SEA limit excluded every kinase set in o43037.
 - Render only the PTM statistics and enrichment Quarto reports from their MuData stages. A lightweight index links them; the delivery archive includes only declared final outputs, so stale legacy reports and proptm3d files are omitted.
 - Use `xlsx_output` for terminal workbook exports; `ptm-pipeline update` migrates existing configurations.
 - Replace 18 full MuData enrichment handoffs with compact CBOR artifacts. The delivery archive includes only the final H5MU and excludes stage CBOR and obsolete stage H5MU files.

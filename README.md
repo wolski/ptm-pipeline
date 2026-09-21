@@ -92,12 +92,14 @@ paired DEA AnnData → PTM_inputs.h5mu → PTM_statistics.h5mu
                                        ↓
                                PTM_results.h5mu
                                        ↓
-                         ptm_enrichment.html, index
+                    three analysis enrichment HTMLs, index
                                        ↓
                           terminal Excel/RDS exports
 ```
 
-Enrichment stages exchange CBOR artifacts while reading the shared `PTM_statistics.h5mu`; final assembly adds the nine JSON documents to `PTM_results.h5mu`. `ptm_statistics.qmd` renders once after DPA/DPU and CorrectFirst are complete; `ptm_enrichment.qmd` renders once after enrichment is assembled. Both read only MuData. `make data` stops at final MuData; `make reports` renders these two HTML files and a simple link page; `make all` also exports delivery files and archives. `run_kinase: false` skips enrichment and its report.
+Enrichment stages exchange CBOR artifacts while reading the shared `PTM_statistics.h5mu`; final assembly adds the nine JSON documents to `PTM_results.h5mu`. `ptm_statistics.qmd` renders once after DPA/DPU and CorrectFirst are complete. The parameterized `ptm_enrichment.qmd` renders one report each for DPA, DPU, and CorrectFirst after enrichment is assembled. Reports read only MuData. `make data` stops at final MuData; `make reports` renders these four HTML files and a simple link page; `make all` also exports delivery files and archives. `run_kinase: false` skips enrichment and its reports.
+
+Kinase GSEA uses `kinaselib.gsea_max_size` (default 5000) because kinase substrate sets can exceed the PTM-SEA `gsea.max_size` limit (default 500).
 
 For an existing project, run `ptm-pipeline update`. It adds missing `enriched_h5ad` and `total_h5ad` paths from the configured DEA directories and preserves existing settings. Optional `ptmsigdb.input_file` imports an existing RDS/GMT; otherwise the reference is downloaded during import. Install the current local prolfquapp, prophosqua, and ptm-pipeline versions together. Older container images do not contain this migration.
 

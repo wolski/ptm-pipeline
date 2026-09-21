@@ -17,13 +17,18 @@ def test_results_archive_contains_only_declared_final_outputs(tmp_path):
         "PTM_DPA/PTMSEA.cbor",
         "PTM_DPA/Analysis_DPA_DPU.html",
         "ptm_statistics.html",
-        "ptm_enrichment.html",
+        "PTM_DPA/ptm_enrichment.html",
+        "PTM_DPU/ptm_enrichment.html",
+        "PTM_CF_DPU/ptm_enrichment.html",
         "PTM_results.xlsx",
     ):
         path = folder / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(relative)
-    reports = [str(folder / "ptm_statistics.html"), str(folder / "ptm_enrichment.html")]
+    reports = [str(folder / "ptm_statistics.html")] + [
+        str(folder / analysis / "ptm_enrichment.html")
+        for analysis in ("PTM_DPA", "PTM_DPU", "PTM_CF_DPU")
+    ]
     index = folder / "index.html"
     module.create_report_index(str(index), reports)
     archive_path = tmp_path / "results.zip"
@@ -38,7 +43,10 @@ def test_results_archive_contains_only_declared_final_outputs(tmp_path):
             "PTM_output/PTM_results.xlsx",
             "PTM_output/index.html",
             "PTM_output/ptm_statistics.html",
-            "PTM_output/ptm_enrichment.html",
+            "PTM_output/PTM_DPA/ptm_enrichment.html",
+            "PTM_output/PTM_DPU/ptm_enrichment.html",
+            "PTM_output/PTM_CF_DPU/ptm_enrichment.html",
         }
         assert b"ptm_statistics.html" in archive.read("PTM_output/index.html")
-        assert b"ptm_enrichment.html" in archive.read("PTM_output/index.html")
+        for analysis in (b"PTM_DPA", b"PTM_DPU", b"PTM_CF_DPU"):
+            assert analysis + b"/ptm_enrichment.html" in archive.read("PTM_output/index.html")
