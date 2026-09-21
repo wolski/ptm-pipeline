@@ -19,8 +19,22 @@ STATISTICS = f"{DIR_OUT}/PTM_statistics.h5mu"
 FINAL = f"{DIR_OUT}/PTM_results.h5mu"
 DIRECTORIES = {name: f"{DIR_OUT}/{value['subdir']}" for name, value in ANALYSES.items()}
 DEA_ARCHIVES = {name: f"{Path(config[f'{name}_dea_dir']).name}.zip" for name in ("phospho", "protein")}
-STAGES = ("PTMSEA", "KinaseInputs", "KinaseAssignments", "MotifEnrichment", "KinaseGSEA", "MEA")
-BRANCHES = ([f"{DIRECTORIES[a]}/{stage}.cbor" for a in ANALYSES for stage in STAGES]
+CBOR_FILES = {
+    "PTMSEA": "result_ptm_sea.cbor",
+    "KinaseInputs": "intermediate_kinase_inputs.cbor",
+    "KinaseAssignments": "intermediate_kinase_assignments.cbor",
+    "MotifEnrichment": "intermediate_mea_computation.cbor",
+    "KinaseGSEA": "result_kinase_gsea.cbor",
+    "MEA": "result_mea.cbor",
+}
+STAGES = tuple(CBOR_FILES)
+
+
+def cbor_path(directory, stage):
+    return f"{directory}/{CBOR_FILES[stage]}"
+
+
+BRANCHES = ([cbor_path(DIRECTORIES[a], stage) for a in ANALYSES for stage in STAGES]
             if RUN_KINASE else [])
 STATISTICS_REPORT = f"{DIR_OUT}/ptm_statistics.html"
 ENRICHMENT_REPORTS = {name: f"{directory}/ptm_enrichment.html" for name, directory in DIRECTORIES.items()}
@@ -69,7 +83,7 @@ if RUN_KINASE:
             rule:
                 name: f"build_{stage.lower()}_{analysis}"
                 input: h5mu=STATISTICS, wrapper=PTM, script=CMD["enrich_cbor"], package=PKG
-                output: cbor=f"{directory}/{stage}.cbor"
+                output: cbor=cbor_path(directory, stage)
                 log: f"{directory}/logs/{stage}.log"
                 params: stage=stage, analysis=analysis.upper()
                 shell:
@@ -77,14 +91,14 @@ if RUN_KINASE:
                     "--stage {params.stage:q} --analysis {params.analysis:q} > {log:q} 2>&1"
         rule:
             name: f"scan_motifs_{analysis}"
-            input: cbor=f"{directory}/KinaseInputs.cbor", executable=KINASE, sources=KINASE_SOURCES
-            output: cbor=f"{directory}/KinaseAssignments.cbor"
+            input: cbor=cbor_path(directory, "KinaseInputs"), executable=KINASE, sources=KINASE_SOURCES
+            output: cbor=cbor_path(directory, "KinaseAssignments")
             log: f"{directory}/logs/scan_motifs.log"
             shell: "{input.executable:q} scan {input.cbor:q} {output.cbor:q} > {log:q} 2>&1"
         rule:
             name: f"run_mea_{analysis}"
-            input: kinase_inputs=f"{directory}/KinaseInputs.cbor", assignments=f"{directory}/KinaseAssignments.cbor", executable=KINASE, sources=KINASE_SOURCES
-            output: cbor=f"{directory}/MotifEnrichment.cbor"
+            input: kinase_inputs=cbor_path(directory, "KinaseInputs"), assignments=cbor_path(directory, "KinaseAssignments"), executable=KINASE, sources=KINASE_SOURCES
+            output: cbor=cbor_path(directory, "MotifEnrichment")
             log: f"{directory}/logs/run_mea.log"
             threads: config["threads"]["mea"]
             shell: "{input.executable:q} enrich {input.kinase_inputs:q} {input.assignments:q} {output.cbor:q} --threads {threads} > {log:q} 2>&1"
@@ -93,16 +107,16 @@ if RUN_KINASE:
                 name: f"build_{stage.lower()}_{analysis}"
                 input:
                     statistics=STATISTICS,
-                    kinase_inputs=f"{directory}/KinaseInputs.cbor",
-                    assignments=f"{directory}/KinaseAssignments.cbor",
-                    motif=[f"{directory}/MotifEnrichment.cbor"] if stage == "MEA" else [],
+                    kinase_inputs=cbor_path(directory, "KinaseInputs"),
+                    assignments=cbor_path(directory, "KinaseAssignments"),
+                    motif=[cbor_path(directory, "MotifEnrichment")] if stage == "MEA" else [],
                     wrapper=PTM, script=CMD["enrich_cbor"], package=PKG
-                output: cbor=f"{directory}/{stage}.cbor"
+                output: cbor=cbor_path(directory, stage)
                 log: f"{directory}/logs/{stage}.log"
                 params:
                     stage=stage,
                     analysis=analysis.upper(),
-                    motif_flag=(f"--motif_enrichment {shlex.quote(directory + '/MotifEnrichment.cbor')}") if stage == "MEA" else ""
+                    motif_flag=(f"--motif_enrichment {shlex.quote(cbor_path(directory, 'MotifEnrichment'))}") if stage == "MEA" else ""
                 shell:
                     "bash {input.wrapper:q} enrich_cbor --statistics {input.statistics:q} --output {output.cbor:q} "
                     "--kinase_inputs {input.kinase_inputs:q} --kinase_assignments {input.assignments:q} "

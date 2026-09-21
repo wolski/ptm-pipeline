@@ -1,5 +1,6 @@
 # ptm-pipeline 0.3.0
 
+- Name CBOR handoffs explicitly by role: three `result_*.cbor` enrichment outputs and three `intermediate_*.cbor` preparation files per analysis. Existing order outputs can be renamed in place without recalculating enrichment.
 - Deliver only `PTM_results.xlsx` alongside the final H5MU and reports. The workbook contains statistics and enrichment tables; per-analysis Excel and RDS files are no longer pipeline outputs. `ptm3d` remains a separate visualization application with no Snakemake rule or pipeline dependency.
 - `ptm-pipeline clean` and `clean all` now remove the configured PTM output directory after Snakemake cleanup, including reports and other files left by rules removed from the current workflow; DEA input folders remain protected.
 

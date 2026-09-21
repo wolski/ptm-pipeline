@@ -58,13 +58,13 @@ flowchart TB
     DPA --> STATS["PTM_statistics.h5mu"]
     CF --> STATS
     STATS --> STATS_REPORT["ptm_statistics.html"]
-    STATS --> SEA["PTMSEA.cbor"]
-    STATS --> PREP["KinaseInputs.cbor"]
-    PREP --> ASSIGN["KinaseAssignments.cbor"]
-    ASSIGN --> GSEA["KinaseGSEA.cbor"]
-    ASSIGN --> MOTIF["MotifEnrichment.cbor"]
+    STATS --> SEA["result_ptm_sea.cbor"]
+    STATS --> PREP["intermediate_kinase_inputs.cbor"]
+    PREP --> ASSIGN["intermediate_kinase_assignments.cbor"]
+    ASSIGN --> GSEA["result_kinase_gsea.cbor"]
+    ASSIGN --> MOTIF["intermediate_mea_computation.cbor"]
     PREP --> MOTIF
-    MOTIF --> MEA["MEA.cbor"]
+    MOTIF --> MEA["result_mea.cbor"]
     SEA --> FINAL["PTM_results.h5mu"]
     GSEA --> FINAL
     MEA --> FINAL
@@ -72,12 +72,12 @@ flowchart TB
     FINAL --> ENRICH_REPORT["DPA, DPU, CF enrichment HTMLs"]
     STATS_REPORT --> INDEX["index.html"]
     ENRICH_REPORT --> INDEX
-    INDEX --> EXPORT["Terminal Excel / RDS exports"]
+    INDEX --> EXPORT["PTM_results.xlsx"]
     FINAL --> EXPORT
     EXPORT --> ZIP["Archives"]
 ```
 
-Import reads both schema 2.0.0 DEA artifacts and their stored design and contrasts. `PTM_statistics.h5mu` is the shared read-only enrichment input. CBOR files carry each preparation and enrichment result through Snakemake; final assembly writes the nine validated JSON documents into `PTM_results.h5mu`. The statistics QMD reads the statistics H5MU once. The enrichment QMD reads the final H5MU separately for DPA, DPU, and CorrectFirst, producing one HTML per analysis. The index links all four reports; Excel/RDS exports run after them.
+Import reads both schema 2.0.0 DEA artifacts and their stored design and contrasts. `PTM_statistics.h5mu` is the shared read-only enrichment input. Each analysis directory holds three `result_*.cbor` files for PTM-SEA, kinase GSEA, and MEA, plus three `intermediate_*.cbor` handoffs for kinase inputs, kinase assignments, and the Python MEA computation. Final assembly writes the nine validated JSON documents into `PTM_results.h5mu`. The statistics QMD reads the statistics H5MU once. The enrichment QMD reads the final H5MU separately for DPA, DPU, and CorrectFirst, producing one HTML per analysis. The index links all four reports; the single Excel workbook is exported after them.
 
 `ptm-pipeline run` builds the complete workflow, including final MuData, reports, delivery exports, and archives. `ptm-pipeline run dry` previews the jobs. R commands run through the installed prophosqua `ptm.sh`; Python kinase calculations use `ptm-kinase-cbor`, installed with ptm-pipeline. Both declare their installed source dependencies.
 

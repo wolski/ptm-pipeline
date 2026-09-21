@@ -14,7 +14,7 @@ def test_results_archive_contains_only_declared_final_outputs(tmp_path):
         "PTM_results.h5mu",
         "PTM_inputs.h5mu",
         "PTM_statistics.h5mu",
-        "PTM_DPA/PTMSEA.cbor",
+        "PTM_DPA/result_ptm_sea.cbor",
         "PTM_DPA/Analysis_DPA_DPU.html",
         "ptm_statistics.html",
         "PTM_DPA/ptm_enrichment.html",

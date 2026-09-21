@@ -23,7 +23,7 @@ def test_motif_enrichment_payload_preserves_json_text():
 
 def test_cbor_handoff_preserves_kinase_results(tmp_path):
     source = {"analysis": "DPU", "statistics_sha256": "a" * 64}
-    output = tmp_path / "MotifEnrichment.cbor"
+    output = tmp_path / "intermediate_mea_computation.cbor"
     payload = {
         "mea_results": pd.DataFrame({"contrast": ["a_vs_b", "c_vs_b"], "NES": [1.5, -2.0]}),
         "gsea_json": '{"data":{},"rank_lists":{}}',
