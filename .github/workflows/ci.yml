@@ -7,6 +7,28 @@ on:
     branches: [main]
 
 jobs:
+  # The documentation site is built here as well as in pages.yml, so a broken
+  # link or a missing include fails a pull request rather than the deployment.
+  documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6.0.3
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install
+
+      - name: Synchronize documentation environment
+        run: uv sync --frozen --only-group docs
+
+      - name: Build documentation
+        run: uv run --no-sync zensical build --clean --strict
+
   test-pipeline:
     runs-on: ubuntu-latest
     container:

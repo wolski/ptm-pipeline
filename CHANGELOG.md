@@ -1,5 +1,9 @@
 # ptm-pipeline 0.3.0
 
+- The documentation site is built with Zensical, the renderer the anndata-omics-bridge packages use, instead of MkDocs Material. `mkdocs.yml` stays the configuration; the docs group installs `zensical` and `pymdown-extensions`, and both workflows run `zensical build --clean --strict`.
+
+- Building the documentation is now a CI job as well as a deployment step, so a broken link, a missing include or a bad nav entry fails a pull request instead of only failing the Pages deploy on `main`.
+
 - The public-dataset survey has moved out of this repository into `ptm_technote`, where the rest of the dataset evaluation lives. It is no longer part of the pipeline documentation site.
 
 - The public-dataset survey now names PXD058857 (ARID1A x vemurafenib x trametinib in A375 melanoma) the primary candidate for the end-to-end demonstration, and records why: one TMT plex holds one complete replicate of the 2 x 2 x 2, so every contrast is within-plex and the plex belongs in the model as a block rather than being removed with ComBat. The deposit's current state is recorded with it - 100 files, 94.6 GB, PARTIAL, no enrichment-named files - along with the two questions for the authors that block a re-search.
