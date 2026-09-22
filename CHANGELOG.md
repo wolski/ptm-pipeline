@@ -1,5 +1,7 @@
 # ptm-pipeline 0.3.0
 
+- Store the six per-analysis stage artifacts compressed, and by what they are: the three completed enrichments as `result_*.json.gz`, gzipped string_gsea documents that any gzip reader opens and `protsea::read_gsea_json()` parses, and the three kinase preparations as `intermediate_*.cbor.gz`. `ptm-kinase-cbor` reads and writes gzipped artifacts to match. The final `PTM_results.h5mu` now names these files instead of copying them, which takes it from 2.3 GB to roughly its statistics size on a three-analysis order; it therefore has to stay beside its analysis folders.
+
 - Name CBOR handoffs explicitly by role: three `result_*.cbor` enrichment outputs and three `intermediate_*.cbor` preparation files per analysis. Existing order outputs can be renamed in place without recalculating enrichment.
 - Deliver only `PTM_results.xlsx` alongside the final H5MU and reports. The workbook contains statistics and enrichment tables; per-analysis Excel and RDS files are no longer pipeline outputs. `ptm3d` remains a separate visualization application with no Snakemake rule or pipeline dependency.
 - `ptm-pipeline clean` and `clean all` now remove the configured PTM output directory after Snakemake cleanup, including reports and other files left by rules removed from the current workflow; DEA input folders remain protected.

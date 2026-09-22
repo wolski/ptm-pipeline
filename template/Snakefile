@@ -19,19 +19,22 @@ STATISTICS = f"{DIR_OUT}/PTM_statistics.h5mu"
 FINAL = f"{DIR_OUT}/PTM_results.h5mu"
 DIRECTORIES = {name: f"{DIR_OUT}/{value['subdir']}" for name, value in ANALYSES.items()}
 DEA_ARCHIVES = {name: f"{Path(config[f'{name}_dea_dir']).name}.zip" for name in ("phospho", "protein")}
-CBOR_FILES = {
-    "PTMSEA": "result_ptm_sea.cbor",
-    "KinaseInputs": "intermediate_kinase_inputs.cbor",
-    "KinaseAssignments": "intermediate_kinase_assignments.cbor",
-    "MotifEnrichment": "intermediate_mea_computation.cbor",
-    "KinaseGSEA": "result_kinase_gsea.cbor",
-    "MEA": "result_mea.cbor",
+# A completed PTM-SEA, Kinase GSEA or MEA stage is a string_gsea document and is
+# stored as gzipped JSON, readable by anything that knows the format. The kinase
+# preparations are packed structures with no such format and stay gzipped CBOR.
+STAGE_FILES = {
+    "PTMSEA": "result_ptm_sea.json.gz",
+    "KinaseInputs": "intermediate_kinase_inputs.cbor.gz",
+    "KinaseAssignments": "intermediate_kinase_assignments.cbor.gz",
+    "MotifEnrichment": "intermediate_mea_computation.cbor.gz",
+    "KinaseGSEA": "result_kinase_gsea.json.gz",
+    "MEA": "result_mea.json.gz",
 }
-STAGES = tuple(CBOR_FILES)
+STAGES = tuple(STAGE_FILES)
 
 
 def cbor_path(directory, stage):
-    return f"{directory}/{CBOR_FILES[stage]}"
+    return f"{directory}/{STAGE_FILES[stage]}"
 
 
 BRANCHES = ([cbor_path(DIRECTORIES[a], stage) for a in ANALYSES for stage in STAGES]

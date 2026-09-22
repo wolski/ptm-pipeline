@@ -1,5 +1,6 @@
 """Run kinase-library calculations with compact CBOR handoffs."""
 
+import gzip
 import importlib.metadata
 import json
 import os
@@ -28,8 +29,19 @@ def dependencies() -> None:
             print(distribution.locate_file(file).resolve())
 
 
+def _artifact_stream(path: Path, mode: str):
+    """Open a stage artifact, gzipped when its name says so.
+
+    prophosqua writes and reads these compressed: the payloads are text-like and
+    reach hundreds of megabytes per analysis.
+    """
+    if path.name.endswith(".gz"):
+        return gzip.open(path, mode)
+    return path.open(mode)
+
+
 def _read_stage(path: Path, expected: str) -> dict[str, Any]:
-    with path.open("rb") as handle:
+    with _artifact_stream(path, "rb") as handle:
         artifact = cbor2.load(handle)
     if artifact["format"] != "prophosqua_stage" or artifact["version"] != "1.0.0":
         raise ValueError(f"Unsupported PTM CBOR artifact: {path}")
@@ -50,7 +62,8 @@ def _plain(value: Any) -> Any:
 
 def _write_stage(source: dict[str, Any], output: Path, stage: str, result: dict[str, Any]) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary = tempfile.mkstemp(prefix=".ptm-cbor-", dir=output.parent)
+    suffix = ".gz" if output.name.endswith(".gz") else ""
+    descriptor, temporary = tempfile.mkstemp(prefix=".ptm-cbor-", suffix=suffix, dir=output.parent)
     os.close(descriptor)
     path = Path(temporary)
     try:
@@ -62,7 +75,7 @@ def _write_stage(source: dict[str, Any], output: Path, stage: str, result: dict[
             "statistics_sha256": source["statistics_sha256"],
             "result": _plain(mudata_values.pack(result)),
         }
-        with path.open("wb") as handle:
+        with _artifact_stream(path, "wb") as handle:
             cbor2.dump(artifact, handle)
         restored = _read_stage(path, stage)
         recovered = mudata_values.unpack(restored["result"])
