@@ -1,5 +1,11 @@
 # ptm-pipeline 0.3.0
 
+- The public-dataset survey has moved out of this repository into `ptm_technote`, where the rest of the dataset evaluation lives. It is no longer part of the pipeline documentation site.
+
+- The public-dataset survey now names PXD058857 (ARID1A x vemurafenib x trametinib in A375 melanoma) the primary candidate for the end-to-end demonstration, and records why: one TMT plex holds one complete replicate of the 2 x 2 x 2, so every contrast is within-plex and the plex belongs in the model as a block rather than being removed with ComBat. The deposit's current state is recorded with it - 100 files, 94.6 GB, PARTIAL, no enrichment-named files - along with the two questions for the authors that block a re-search.
+
+- The public-dataset survey now records that MSV000085565's two TMT plexes are a proper block — every condition present in both — and points to `ptm_technote/TODO_dataset_factorial.md` for the verified channel-to-condition tables of both leading candidates.
+
 - Store the six per-analysis stage artifacts compressed, and by what they are: the three completed enrichments as `result_*.json.gz`, gzipped string_gsea documents that any gzip reader opens and `protsea::read_gsea_json()` parses, and the three kinase preparations as `intermediate_*.cbor.gz`. `ptm-kinase-cbor` reads and writes gzipped artifacts to match. The final `PTM_results.h5mu` now names these files instead of copying them, which takes it from 2.3 GB to roughly its statistics size on a three-analysis order; it therefore has to stay beside its analysis folders.
 
 - Name CBOR handoffs explicitly by role: three `result_*.cbor` enrichment outputs and three `intermediate_*.cbor` preparation files per analysis. Existing order outputs can be renamed in place without recalculating enrichment.

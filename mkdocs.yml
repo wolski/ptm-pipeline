@@ -10,7 +10,6 @@ nav:
   - Home: index.md
   - Methods: methods.md
   - R packages: packages.md
-  - Public datasets: public-datasets.md
   - Slides: slides.md
 
 markdown_extensions:

@@ -121,8 +121,6 @@ See [Methods](methods.md) for a full description of the computational workflow, 
 
 See [R Package Dependencies](packages.md) for how the R packages the pipeline calls depend on each other, and which layer a fix belongs in.
 
-See [Public PTM Datasets](public-datasets.md) for public phosphoproteomics datasets with a factorial design and a matched total proteome, which of them the pipeline can actually consume, and how the search was done.
-
 ## Links
 
 - [GitHub Repository](https://github.com/wolski/ptm-pipeline)
