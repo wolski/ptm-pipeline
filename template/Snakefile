@@ -2,7 +2,7 @@
 import json
 import shlex
 from pathlib import Path
-from helpers import create_report_index, create_results_archive, get_prophosqua_file, get_prophosqua_report, get_prophosqua_install_stamp, get_kinase_cbor_files
+from helpers import create_results_archive, get_prophosqua_file, get_prophosqua_report, get_prophosqua_install_stamp, get_kinase_cbor_files, render_report_index
 
 configfile: "ptm_config.yaml"
 
@@ -19,16 +19,15 @@ STATISTICS = f"{DIR_OUT}/PTM_statistics.h5mu"
 FINAL = f"{DIR_OUT}/PTM_results.h5mu"
 DIRECTORIES = {name: f"{DIR_OUT}/{value['subdir']}" for name, value in ANALYSES.items()}
 DEA_ARCHIVES = {name: f"{Path(config[f'{name}_dea_dir']).name}.zip" for name in ("phospho", "protein")}
-# A completed PTM-SEA, Kinase GSEA or MEA stage is a string_gsea document and is
-# stored as gzipped JSON, readable by anything that knows the format. The kinase
-# preparations are packed structures with no such format and stay gzipped CBOR.
+# Every stage handoff is a gzipped CBOR envelope. The completed enrichments
+# carry their string_gsea document, the kinase preparations their packed result.
 STAGE_FILES = {
-    "PTMSEA": "result_ptm_sea.json.gz",
+    "PTMSEA": "result_ptm_sea.cbor.gz",
     "KinaseInputs": "intermediate_kinase_inputs.cbor.gz",
     "KinaseAssignments": "intermediate_kinase_assignments.cbor.gz",
     "MotifEnrichment": "intermediate_mea_computation.cbor.gz",
-    "KinaseGSEA": "result_kinase_gsea.json.gz",
-    "MEA": "result_mea.json.gz",
+    "KinaseGSEA": "result_kinase_gsea.cbor.gz",
+    "MEA": "result_mea.cbor.gz",
 }
 STAGES = tuple(STAGE_FILES)
 
@@ -39,11 +38,18 @@ def cbor_path(directory, stage):
 
 BRANCHES = ([cbor_path(DIRECTORIES[a], stage) for a in ANALYSES for stage in STAGES]
             if RUN_KINASE else [])
+RESULT_STAGES = tuple(stage for stage in STAGES if STAGE_FILES[stage].startswith("result_"))
+RESULT_BRANCHES = ([cbor_path(DIRECTORIES[a], stage) for a in ANALYSES for stage in RESULT_STAGES]
+                   if RUN_KINASE else [])
 STATISTICS_REPORT = f"{DIR_OUT}/ptm_statistics.html"
 ENRICHMENT_REPORTS = {name: f"{directory}/ptm_enrichment.html" for name, directory in DIRECTORIES.items()}
 REPORTS = [STATISTICS_REPORT] + (list(ENRICHMENT_REPORTS.values()) if RUN_KINASE else [])
 INDEX = f"{DIR_OUT}/index.html"
+INDEX_TEMPLATE = ["index.qmd", "ptm-pipeline-overview.svg"]
 DELIVERY = [f"{DIR_OUT}/PTM_results.xlsx"]
+STATISTICS_ARCHIVE = f"{DIR_OUT}_statistics.zip"
+ENRICHMENT_ARCHIVE = f"{DIR_OUT}_enrichment.zip"
+RESULTS_ARCHIVE = f"{DIR_OUT}.zip"
 
 rule all:
     input:
@@ -51,9 +57,15 @@ rule all:
         REPORTS,
         DELIVERY,
         INDEX,
-        f"{DIR_OUT}.zip",
+        RESULTS_ARCHIVE,
         DEA_ARCHIVES["phospho"],
         DEA_ARCHIVES["protein"]
+
+rule stats:
+    input: STATISTICS_ARCHIVE
+
+rule gsea:
+    input: ENRICHMENT_ARCHIVE
 
 rule import_inputs:
     input:
@@ -161,10 +173,10 @@ if RUN_KINASE:
                 "fdr_threshold={params.fdr} > {log:q} 2>&1"
 
 rule top_index:
-    input: reports=REPORTS
+    input: reports=REPORTS, config="ptm_config.yaml", template=INDEX_TEMPLATE
     output: html=INDEX
     run:
-        create_report_index(output.html, input.reports)
+        render_report_index(output.html, input.config, input.template)
 
 rule export_delivery:
     input: h5mu=FINAL, reports=REPORTS, index=INDEX, wrapper=PTM, script=CMD["export_h5mu"], package=PKG
@@ -173,13 +185,30 @@ rule export_delivery:
     params: folder=DIR_OUT
     shell: "bash {input.wrapper:q} export_h5mu --input {input.h5mu:q} --output_dir {params.folder:q} > {log:q} 2>&1"
 
+rule zip_statistics:
+    input: inputs=INPUTS, h5mu=STATISTICS
+    output: archive=STATISTICS_ARCHIVE
+    params: folder=DIR_OUT
+    run:
+        create_results_archive(params.folder, output.archive, [input.inputs, input.h5mu])
+
+# The final MuData names its enrichment artifacts by relative path, so the two
+# travel together or neither can be read.
+rule zip_enrichment:
+    input: h5mu=FINAL, branches=BRANCHES
+    output: archive=ENRICHMENT_ARCHIVE
+    params: folder=DIR_OUT
+    run:
+        create_results_archive(params.folder, output.archive, [input.h5mu] + list(input.branches))
+
 rule zip:
-    input: delivery=DELIVERY, h5mu=FINAL, reports=REPORTS, index=INDEX
-    output: results=f"{DIR_OUT}.zip", phospho=DEA_ARCHIVES["phospho"], protein=DEA_ARCHIVES["protein"]
+    input: delivery=DELIVERY, h5mu=FINAL, branches=RESULT_BRANCHES, reports=REPORTS, index=INDEX
+    output: results=RESULTS_ARCHIVE, phospho=DEA_ARCHIVES["phospho"], protein=DEA_ARCHIVES["protein"]
     params: folder=DIR_OUT, phospho=config["phospho_dea_dir"], protein=config["protein_dea_dir"]
     run:
         create_results_archive(
             params.folder, output.results,
-            list(input.delivery) + [input.h5mu] + list(input.reports) + [input.index]
+            list(input.delivery) + [input.h5mu] + list(input.branches)
+            + list(input.reports) + [input.index]
         )
         shell("zip -r {output.phospho:q} {params.phospho:q} && zip -r {output.protein:q} {params.protein:q}")

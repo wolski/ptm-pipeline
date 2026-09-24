@@ -1,0 +1,114 @@
+---
+title: "PTM analysis results"
+subtitle: "`r yaml::read_yaml(params$config)$dir_out`"
+params:
+  config: "ptm_config.yaml"
+  pipeline_version: "unknown"
+---
+
+```{r setup}
+#| include: false
+config <- yaml::read_yaml(params$config)
+run_kinase <- isTRUE(config$run_kinase) || is.null(config$run_kinase)
+analysis_labels <- c(dpa = "DPA", dpu = "DPU", cf = "CorrectFirst DPU")
+analyses <- names(config$analyses)
+labels <- ifelse(
+  analyses %in% names(analysis_labels),
+  analysis_labels[analyses],
+  vapply(config$analyses, function(analysis) analysis$sheet, character(1))
+)
+subdirs <- vapply(config$analyses, function(analysis) analysis$subdir, character(1))
+generated_at <- format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")
+
+link <- function(text, href) {
+  sprintf("[%s](%s)", text, href)
+}
+file_table <- function(table) {
+  knitr::kable(table, escape = FALSE, col.names = c("Open", "What it contains", "File"))
+}
+```
+
+# What this page is
+
+This page is the entry point to the phosphoproteomics PTM analysis delivered in the folder **`r config$dir_out`**. It lists every report and result file of the analysis, says what each one contains, and links to it. Start with the statistics report, then open the enrichment report of the branch you are interested in. The Excel workbook holds the same result tables for your own filtering.
+
+The analysis compares **`r length(config$contrasts)`** contrast`r if (length(config$contrasts) != 1) "s"`: `r paste(config$contrasts, collapse = "; ")`. Sites are called significant at FDR < `r config$fdr` and |log2 fold change| > `r config$log2fc`.
+
+# How the results were produced
+
+<img src="`r knitr::image_uri("ptm-pipeline-overview.svg")`" alt="Two differential expression analyses, on enriched PTM sites and on the total proteome, enter the PTM statistics stage with its DPA, DPU and CorrectFirst DPU branches. Each branch feeds PTM-SEA, Kinase GSEA and motif enrichment. The reports and an Excel workbook are delivered in one archive." style="width: 100%; max-height: 26rem; object-fit: contain;">
+
+Two differential expression analyses are the input: one on the enriched sample set, giving PTM site abundances, and one on the total proteome, giving protein abundances. The **PTM statistics** stage combines them in three branches. **DPA** (differential PTM abundance) reports the observed change at each site. **DPU** (differential PTM usage) subtracts the protein-level change after modelling. **CorrectFirst DPU** first corrects site abundances by their protein abundances and then fits the model. `r if (run_kinase) "Each branch ranks the sites and hands the ranking to three **enrichment** methods: PTM-SEA against the PTMsigDB signature sets, Kinase GSEA on Kinase Library substrate scores, and motif enrichment analysis (MEA)."`
+
+# Reports
+
+```{r reports}
+#| tbl-cap: "Interactive HTML reports. Each report opens in the browser and carries its own overview, methods and provenance sections."
+reports <- data.frame(
+  open = link("PTM statistics", "ptm_statistics.html"),
+  contents = "DPA, DPU and CorrectFirst DPU side by side: input summary, volcano plots, site versus protein plots, sequence and difference logos, model summaries and searchable result tables per contrast.",
+  file = "`ptm_statistics.html`",
+  stringsAsFactors = FALSE
+)
+if (run_kinase) {
+  enrichment <- data.frame(
+    open = link(paste(labels, "enrichment"), file.path(subdirs, "ptm_enrichment.html")),
+    contents = paste0(
+      "PTM-SEA, Kinase GSEA and MEA for the ", labels,
+      " ranking: enrichment overview, summary plots, running-score plots and the complete tested-term tables."
+    ),
+    file = paste0("`", file.path(subdirs, "ptm_enrichment.html"), "`"),
+    stringsAsFactors = FALSE
+  )
+  reports <- rbind(reports, enrichment)
+}
+file_table(reports)
+```
+
+# Result files
+
+```{r results}
+#| tbl-cap: "Result tables for your own filtering and plotting in Excel or R."
+results <- data.frame(
+  open = link("Excel workbook", "PTM_results.xlsx"),
+  contents = paste0(
+    "One sheet per statistics branch (", paste(labels, collapse = ", "),
+    ") with site identifiers, positions, modified residues, log2 fold changes, p-values and FDR per contrast, plus the enrichment result tables."
+  ),
+  file = "`PTM_results.xlsx`",
+  stringsAsFactors = FALSE
+)
+file_table(results)
+```
+
+# Analysis settings
+
+```{r settings}
+#| tbl-cap: "Settings of this analysis as recorded in the pipeline configuration."
+settings <- data.frame(
+  Setting = c(
+    "Contrasts",
+    "FDR threshold",
+    "Absolute log2 fold-change threshold",
+    "Statistics branches",
+    "Enrichment",
+    "PTM site DEA",
+    "Total protein DEA",
+    "Pipeline",
+    "Generated at"
+  ),
+  Value = c(
+    paste(config$contrasts, collapse = "; "),
+    format(config$fdr),
+    format(config$log2fc),
+    paste(labels, collapse = ", "),
+    if (run_kinase) "PTM-SEA, Kinase GSEA, MEA" else "not run",
+    config$phospho_dea_dir,
+    config$protein_dea_dir,
+    paste("ptm-pipeline", params$pipeline_version),
+    generated_at
+  ),
+  stringsAsFactors = FALSE
+)
+knitr::kable(settings)
+```

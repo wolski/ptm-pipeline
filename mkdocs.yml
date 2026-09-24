@@ -8,6 +8,7 @@ theme:
 
 nav:
   - Home: index.md
+  - CLI reference: cli.md
   - Methods: methods.md
   - R packages: packages.md
   - Slides: slides.md

@@ -8,33 +8,52 @@ import glob
 import os
 import shutil
 import subprocess
+import tempfile
 from functools import lru_cache
-from html import escape
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
 
 
-def create_report_index(output: str, reports: list[str]) -> None:
-    """Link the statistics report and one enrichment report per analysis."""
-    titles = {"PTM_DPA": "DPA", "PTM_DPU": "DPU", "PTM_CF_DPU": "CorrectFirst DPU"}
-    destination = Path(output)
-    def label(report: str) -> str:
-        path = Path(report)
-        return "PTM statistics" if path.name == "ptm_statistics.html" else f"{titles[path.parent.name]} enrichment"
+def pipeline_version() -> str:
+    """Version of the ptm-pipeline tool on PATH, as rendered into the landing page."""
+    executable = shutil.which("ptm-pipeline")
+    if executable is None:
+        return "unknown"
+    result = subprocess.run([executable, "--version"], capture_output=True, text=True, check=False)
+    return result.stdout.strip() or "unknown"
 
-    links = "\n".join(
-        f'<li><a href="{escape(os.path.relpath(report, destination.parent))}">'
-        f'{escape(label(report))}</a></li>'
-        for report in reports
-    )
-    page = (
-        '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width, initial-scale=1">'
-        '<title>PTM reports</title></head><body><h1>PTM reports</h1><ul>'
-        f'{links}</ul></body></html>\n'
-    )
+
+def _r_string(value: str) -> str:
+    return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+
+def render_report_index(output: str, config: str, template_files: list[str]) -> None:
+    """Render the FGCZ Quarto landing page that links the reports and result files.
+
+    Quarto writes next to its input, so the template and its figure are staged in
+    a temporary directory inside the results folder and only index.html is kept.
+    """
+    destination = Path(output).resolve()
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(page)
+    render_dir = Path(tempfile.mkdtemp(prefix=".index_qmd_", dir=destination.parent))
+    try:
+        for template in template_files:
+            shutil.copy2(template, render_dir / Path(template).name)
+        execute_params = ", ".join(
+            f"{key} = {_r_string(value)}"
+            for key, value in {
+                "config": str(Path(config).resolve()),
+                "pipeline_version": pipeline_version(),
+            }.items()
+        )
+        expression = (
+            "fgczQuartoTemplate::fgcz_render('index.qmd', output_file = 'index.html', "
+            f"execute_params = list({execute_params}), quiet = TRUE)"
+        )
+        subprocess.run(["Rscript", "-e", expression], cwd=render_dir, check=True)
+        shutil.move(render_dir / "index.html", destination)
+    finally:
+        shutil.rmtree(render_dir, ignore_errors=True)
 
 
 def create_results_archive(folder: str, output: str, members: list[str]) -> None:
@@ -49,7 +68,7 @@ def create_results_archive(folder: str, output: str, members: list[str]) -> None
                 relative = path.relative_to(root)
                 if not path.is_file():
                     raise FileNotFoundError(path)
-                compression = ZIP_STORED if path.suffix == ".h5mu" else ZIP_DEFLATED
+                compression = ZIP_STORED if path.suffix in (".h5mu", ".gz") else ZIP_DEFLATED
                 archive.write(path, arcname=str(Path(root.name) / relative), compress_type=compression)
         os.replace(temporary, destination)
     finally:

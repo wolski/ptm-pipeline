@@ -23,7 +23,9 @@ app = cyclopts.App(
 init_app = cyclopts.App(
     name="init", help="Create pipeline files from paired DEA results."
 )
-run_app = cyclopts.App(name="run", help="Run the complete Snakemake pipeline.")
+run_app = cyclopts.App(
+    name="run", help="Run the pipeline to a chosen depth; each depth writes a zip."
+)
 clean_app = cyclopts.App(name="clean", help="Remove outputs or initialization files.")
 for group in (init_app, run_app, clean_app):
     app.command(group)
@@ -91,7 +93,7 @@ def init_default(
     _initialize(input_dir, output_dir, name, force, noninteractive=True)
 
 
-def _snakemake_command(directory: Path) -> tuple[Path, list[str]]:
+def _snakemake_command(directory: Path, target: str) -> tuple[Path, list[str]]:
     directory = directory.resolve()
     if not directory.is_dir():
         console.print(f"[red]Project directory does not exist:[/red] {directory}")
@@ -106,10 +108,10 @@ def _snakemake_command(directory: Path) -> tuple[Path, list[str]]:
             )
             raise SystemExit(1)
     # Snakemake accepts multiple --configfile values and would treat a trailing
-    # 'all' as another config filename. Put the target before the option.
+    # target as another config filename. Put the target before the option.
     return directory, [
         "snakemake",
-        "all",
+        target,
         "-s",
         str(snakefile),
         "--configfile",
@@ -118,9 +120,13 @@ def _snakemake_command(directory: Path) -> tuple[Path, list[str]]:
 
 
 def _execute(
-    directory: Path, *, cores: int | None = None, flag: str | None = None
+    directory: Path,
+    *,
+    cores: int | None = None,
+    flag: str | None = None,
+    target: str = "all",
 ) -> None:
-    directory, command = _snakemake_command(directory)
+    directory, command = _snakemake_command(directory, target)
     if cores is not None:
         if cores < 1:
             console.print("[red]--cores must be a positive integer.[/red]")
@@ -153,14 +159,46 @@ def run(
     _execute(directory, cores=cores)
 
 
+@run_app.command(name="stats")
+def run_stats(
+    directory: Annotated[
+        Path, cyclopts.Parameter(help="Initialized project directory")
+    ] = Path("."),
+    *,
+    cores: Annotated[
+        int, cyclopts.Parameter(name=["--cores", "-j"], help="Parallel cores")
+    ] = 1,
+) -> None:
+    """Run through the statistics stage only, then archive it."""
+    _execute(directory, cores=cores, target="stats")
+
+
+@run_app.command(name="gsea")
+def run_gsea(
+    directory: Annotated[
+        Path, cyclopts.Parameter(help="Initialized project directory")
+    ] = Path("."),
+    *,
+    cores: Annotated[
+        int, cyclopts.Parameter(name=["--cores", "-j"], help="Parallel cores")
+    ] = 1,
+) -> None:
+    """Run through the enrichment stages and the final MuData, without reports."""
+    _execute(directory, cores=cores, target="gsea")
+
+
 @run_app.command(name="dry")
 def run_dry(
     directory: Annotated[
         Path, cyclopts.Parameter(help="Initialized project directory")
     ] = Path("."),
+    *,
+    target: Annotated[
+        str, cyclopts.Parameter(help="Target to plan: all, stats or gsea")
+    ] = "all",
 ) -> None:
-    """Show the jobs a full run would execute without changing outputs."""
-    _execute(directory, flag="--dry-run")
+    """Show the jobs a run would execute without changing outputs."""
+    _execute(directory, flag="--dry-run", target=target)
 
 
 @clean_app.default

@@ -57,7 +57,8 @@ def get_template_dir() -> Path:
 def copy_template_files(project_dir: Path, dry_run: bool = False) -> list[str]:
     """Copy template files to project directory.
 
-    The project gets Snakefile, helpers.py, and the ptm.sh wrapper. No R code is copied,
+    The project gets Snakefile, helpers.py, the landing page template with its
+    figure, and the ptm.sh wrapper. No R code is copied,
     because there is none to copy -- every rule reaches its R script through
     that wrapper, which resolves it from the installed package.
 
@@ -67,7 +68,7 @@ def copy_template_files(project_dir: Path, dry_run: bool = False) -> list[str]:
     copied_files = []
 
     # Files to copy at root level
-    root_files = ["Snakefile", "helpers.py"]
+    root_files = ["Snakefile", "helpers.py", "index.qmd", "ptm-pipeline-overview.svg"]
 
     for filename in root_files:
         src = template_dir / filename

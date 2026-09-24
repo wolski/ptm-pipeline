@@ -1,5 +1,13 @@
 # ptm-pipeline 0.3.0
 
+- The three completed enrichment stages are `result_*.cbor.gz` again, gzipped CBOR envelopes like the kinase preparations, so every handoff and every shipped result document has one format.
+
+- The results archive no longer contains the `intermediate_*` kinase and MEA stage files. It ships the reports, the landing page, the Excel workbook, the final MuData file and the three `result_*` enrichment documents per analysis.
+
+- The results landing page `index.html` is now an FGCZ Quarto report rendered from `index.qmd`, which `init` places in the project next to the Snakefile. It explains what the page is for, shows the pipeline from the two DEA inputs through the statistics and enrichment stages to the delivered files, and lists every report and the Excel workbook in tables with a description and a link. Only files inside the delivered archive are linked; the MuData file and the intermediate stage files are not user facing. The page reads `ptm_config.yaml`, so the branches, contrasts and thresholds it shows are those of the run.
+
+- Document where the total-protein, enriched-site, and CorrectFirst abundance matrices and site-level differential results live inside `PTM_statistics.h5mu`.
+
 - The documentation site is built with Zensical, the renderer the anndata-omics-bridge packages use, instead of MkDocs Material. `mkdocs.yml` stays the configuration; the docs group installs `zensical` and `pymdown-extensions`, and both workflows run `zensical build --clean --strict`.
 
 - Building the documentation is now a CI job as well as a deployment step, so a broken link, a missing include or a bad nav entry fails a pull request instead of only failing the Pages deploy on `main`.

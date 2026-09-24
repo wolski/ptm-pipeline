@@ -1,11 +1,19 @@
-"""The project CLI exposes one full-run path and distinct cleanup scopes."""
+"""The project CLI exposes three run depths and distinct cleanup scopes."""
 
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from ptm_pipeline.cli import clean, clean_all, clean_init, run, run_dry
+from ptm_pipeline.cli import (
+    clean,
+    clean_all,
+    clean_init,
+    run,
+    run_dry,
+    run_gsea,
+    run_stats,
+)
 from ptm_pipeline.init import copy_template_files
 
 
@@ -18,6 +26,21 @@ def initialized_project(tmp_path: Path) -> Path:
         "protein_dea_dir: DEA_protein\n"
     )
     return tmp_path
+
+
+def test_each_run_depth_asks_snakemake_for_its_own_target(tmp_path):
+    project = initialized_project(tmp_path)
+    with patch("ptm_pipeline.cli.subprocess.run") as execute:
+        execute.return_value.returncode = 0
+        run(project)
+        run_stats(project, cores=4)
+        run_gsea(project)
+        run_dry(project, target="stats")
+
+    targets = [call.args[0][1] for call in execute.call_args_list]
+    assert targets == ["all", "stats", "gsea", "stats"]
+    assert execute.call_args_list[1].args[0][-2:] == ["--cores", "4"]
+    assert execute.call_args_list[3].args[0][-1] == "--dry-run"
 
 
 def test_run_and_clean_use_only_the_full_snakemake_target(tmp_path):
@@ -124,5 +147,11 @@ def test_template_copy_does_not_create_a_makefile(tmp_path):
     )
     with patch("ptm_pipeline.init.copy_shell_wrapper", return_value=["ptm.sh"]):
         copied = copy_template_files(tmp_path)
-    assert copied == ["Snakefile", "helpers.py", "ptm.sh"]
+    assert copied == [
+        "Snakefile",
+        "helpers.py",
+        "index.qmd",
+        "ptm-pipeline-overview.svg",
+        "ptm.sh",
+    ]
     assert not (tmp_path / "Makefile").exists()

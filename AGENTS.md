@@ -30,7 +30,9 @@ uv run zensical build --clean --strict       # Build into public/ exactly as CI 
 ptm-pipeline init                       # Interactive initialization
 ptm-pipeline init default               # Non-interactive initialization
 ptm-pipeline run                        # Complete workflow
-ptm-pipeline run dry                    # Preview complete workflow
+ptm-pipeline run stats                  # Stop at PTM_statistics.h5mu, archive it
+ptm-pipeline run gsea                   # Stop at PTM_results.h5mu, archive it
+ptm-pipeline run dry [--target TARGET]  # Preview all, stats or gsea
 ptm-pipeline clean                      # Remove declared outputs
 ptm-pipeline clean init                 # Remove initialization files
 ptm-pipeline clean all                  # Remove both
