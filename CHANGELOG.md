@@ -1,5 +1,13 @@
 # ptm-pipeline 0.3.0
 
+- Enrichment results stay out of MuData and are protsea documents: each analysis directory holds `result_ptm_sea.json.gz`, `result_kinase_gsea.json.gz` and `result_mea.json.gz`, and `PTM_results.h5mu` only names them. `ptm-kinase-cbor enrich` writes the kinase-library MEA document straight to `result_mea.json.gz`, instead of packing its JSON text into a CBOR envelope that it then read back; with the four contrasts of the MiMB example that text no longer fit numpy's fixed-width strings. The prophosqua command `enrich_cbor` is `enrich`, and the MEA tabulation rule is gone: prophosqua derives the MEA tables from the document.
+
+- New setting `remove_contaminants`, false by default: prophosqua keeps the sites and proteins the DEAs flag as contaminants unless it is true. `helpers.py` no longer carries the DEA-path helpers (`get_dea_xlsx_path()`, `get_parquet_path()`, `get_dea_yaml_path()`, `build_analysis_lookups()`), unused since the DEAs are read from their AnnData files, and the three skills are parked as `SKILL.md.bak` until they are brought up to date.
+
+- Document the `enriched_CF` modality, which replaces `cf` in `PTM_statistics.h5mu`: it holds the sites of `enriched` whose protein the proteome quantified, in the enriched order, with CorrectFirst as `X`, its two imputed variants as layers, and the results of CorrectFirst and the protein-imputed variant as `varm`; the site-imputed variant is not fitted. The new page `imputation.md` records how each variant imputes, the expected sizes of its layer, and what the reports show.
+
+- `init` accepts only prolfquapp DEA AnnData schema 2.1.0, as written by prolfquapp 2.10.5: the `imputedData` layer, the `imputation` varm block and the feature keys in every result frame. prophosqua reads the two DEAs through prolfquapp's `DEAResultReader`; DEAs from earlier prolfquapp versions need a rerun.
+
 - The three completed enrichment stages are `result_*.cbor.gz` again, gzipped CBOR envelopes like the kinase preparations, so every handoff and every shipped result document has one format.
 
 - The results archive no longer contains the `intermediate_*` kinase and MEA stage files. It ships the reports, the landing page, the Excel workbook, the final MuData file and the three `result_*` enrichment documents per analysis.

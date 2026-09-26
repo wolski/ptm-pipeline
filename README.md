@@ -72,14 +72,14 @@ it — an edit in a project directory would be discarded by the next
 
 ## MuData workflow
 
-The input boundary reads `enriched_h5ad` and `total_h5ad` (prolfquapp schema 2.0.0), their stored sample design and contrasts, and the configured PTMsigDB reference. No separate annotation file is needed.
+The input boundary reads `enriched_h5ad` and `total_h5ad` through prolfquapp's `DEAResultReader`: both DEAs written by prolfquapp 2.10.5 (schema 2.1.0) with the `lm_impute` model, which writes `imputedData`. It also reads their stored sample design and contrasts, and the configured PTMsigDB reference. No separate annotation file is needed.
 
 ```text
 paired DEA AnnData → PTM_inputs.h5mu → PTM_statistics.h5mu
                                        ├→ ptm_statistics.html
                                        ↓
-                  PTMSEA / KinaseInputs / KinaseAssignments /
-                         KinaseGSEA / MotifEnrichment / MEA (.cbor)
+        PTMSEA / KinaseGSEA / MEA (.json.gz, protsea documents)
+           KinaseInputs / KinaseAssignments (.cbor.gz)
                                        ↓
                                PTM_results.h5mu
                                        ↓
@@ -88,7 +88,7 @@ paired DEA AnnData → PTM_inputs.h5mu → PTM_statistics.h5mu
                           terminal Excel/RDS exports
 ```
 
-Enrichment stages exchange CBOR artifacts while reading the shared `PTM_statistics.h5mu`; final assembly adds the nine JSON documents to `PTM_results.h5mu`. `ptm_statistics.qmd` renders once after DPA/DPU and CorrectFirst are complete. The parameterized `ptm_enrichment.qmd` renders one report each for DPA, DPU, and CorrectFirst after enrichment is assembled. Reports read only MuData. `ptm-pipeline run` builds the full target, including final MuData, four HTML reports, terminal Excel/RDS exports, and archives. `run_kinase: false` skips enrichment and its reports.
+Enrichment stages read the shared `PTM_statistics.h5mu` and write their files into each analysis directory: the kinase-library preparations as CBOR, the nine completed enrichments as protsea `.json.gz` documents. Final assembly writes `PTM_results.h5mu`, which names these files but holds none of their content. `ptm_statistics.qmd` renders once after DPA/DPU and CorrectFirst are complete. The parameterized `ptm_enrichment.qmd` renders one report each for DPA, DPU, and CorrectFirst after enrichment is assembled. Reports read only MuData. `ptm-pipeline run` builds the full target, including final MuData, four HTML reports, terminal Excel/RDS exports, and archives. `run_kinase: false` skips enrichment and its reports.
 
 Each run depth ends in its own archive, so an interrupted analysis still hands over something complete: `run stats` writes `<dir_out>_statistics.zip` (the two MuData files), `run gsea` writes `<dir_out>_enrichment.zip` (final MuData plus its enrichment artifacts), and a full `run` writes `<dir_out>.zip`. A full run writes only the last of the three. The final MuData names its enrichment artifacts by relative path, so every archive that carries it carries them too.
 
@@ -127,9 +127,10 @@ The `ptm_config.yaml` file controls pipeline behavior. Key options:
 | `ptmsigdb.input_file` | Optional reference imported into MuData once |
 | `fdr` | FDR threshold for significance (default: 0.25) |
 | `log2fc` | Log2 fold change threshold (default: 0.5) |
+| `remove_contaminants` | Drop the sites and proteins the DEAs flag as contaminants (default: false) |
 
 PTM report templates are resolved from the installed `prophosqua` package via
-`system.file("application", ..., package = "prophosqua")`.
+`prophosqua::report_file()`.
 
 ## Development
 

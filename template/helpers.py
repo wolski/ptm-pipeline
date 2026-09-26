@@ -1,10 +1,6 @@
-"""Helper functions for Snakefile
+"""Helper functions for the Snakefile: prophosqua's installed files, the
+landing page and the results archives."""
 
-This module contains utility functions for finding DEA directories
-and constructing file paths used by the Snakemake pipeline.
-"""
-
-import glob
 import os
 import shutil
 import subprocess
@@ -123,7 +119,7 @@ def get_prophosqua_report(name: str) -> str:
 
     Where a template lives is the package's business, not the pipeline's: the
     analysis QMDs are prophosqua's vignettes and install into its `doc/`.
-    Asking `prophosqua:::report_file()` keeps that rule in the package.
+    Asking `prophosqua::report_file()` keeps that rule in the package.
 
     Args:
         name: Template file name, e.g. "ptm_statistics.qmd"
@@ -137,7 +133,7 @@ def get_prophosqua_report(name: str) -> str:
     """
     cmd = [
         'Rscript', '--vanilla', '-e',
-        f'cat(prophosqua:::report_file("{name}"))'
+        f'cat(prophosqua::report_file("{name}"))'
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     path = result.stdout.strip()
@@ -181,94 +177,3 @@ def get_prophosqua_install_stamp() -> str:
             "Install it with: make -C <prophosqua checkout> install"
         )
     return path
-
-
-def _dea_file(dea_dir: str, filename: str, description: str) -> str:
-    """Resolve one file inside the Results_WU_* subdirectory of a DEA directory.
-
-    Mirrors prophosqua::get_dea_file() so that a file declared as a rule
-    input is the same file the R code opens. Matches are sorted before the first
-    is taken: a DEA directory is expected to hold one Results_WU_*, and sorting
-    keeps the choice reproducible if it ever holds more.
-
-    Args:
-        dea_dir: Path to DEA output directory
-        filename: File to find inside Results_WU_* (glob patterns allowed)
-        description: Wording for the error message
-
-    Returns:
-        Path to the file
-
-    Raises:
-        ValueError: If no such file is found
-    """
-    matches = sorted(glob.glob(f"{dea_dir}/Results_WU_*/{filename}"))
-    if not matches:
-        raise ValueError(f"No {description} found in {dea_dir}")
-    return matches[0]
-
-
-def get_parquet_path(dea_dir: str) -> str:
-    """Get the normalized abundance parquet of a DEA directory.
-
-    Args:
-        dea_dir: Path to DEA output directory (e.g., "DEA_setup/DEA_20260109_WUphospho_SHP2_vsn")
-
-    Returns:
-        Path to the normalized parquet file
-    """
-    return _dea_file(dea_dir, "lfqdata_normalized.parquet", "parquet file")
-
-
-def get_dea_yaml_path(dea_dir: str) -> str:
-    """Get the analysis configuration YAML of a DEA directory.
-
-    Args:
-        dea_dir: Path to DEA output directory
-
-    Returns:
-        Path to lfqdata.yaml
-    """
-    return _dea_file(dea_dir, "lfqdata.yaml", "yaml file")
-
-
-def get_dea_xlsx_path(dea_dir: str) -> str:
-    """Get the results workbook of a DEA directory.
-
-    Prefers the DE_-prefixed workbook that prolfquapp writes, as
-    prophosqua::get_dea_xlsx() does, so that the declared input is the
-    workbook the reports actually read.
-
-    Args:
-        dea_dir: Path to DEA output directory
-
-    Returns:
-        Path to the results workbook
-    """
-    matches = sorted(glob.glob(f"{dea_dir}/Results_WU_*/*.xlsx"))
-    if not matches:
-        raise ValueError(f"No Excel file found in {dea_dir}")
-    preferred = [m for m in matches if os.path.basename(m).startswith("DE_")]
-    return preferred[0] if preferred else matches[0]
-
-
-def build_analysis_lookups(dir_out: str, analyses_config: dict) -> dict:
-    """Build lookup dictionaries for analysis configurations.
-
-    Args:
-        dir_out: Base output directory
-        analyses_config: Dictionary of analysis configurations
-
-    Returns:
-        Dictionary containing:
-        - types: List of analysis type keys
-        - dirs: Dict mapping analysis -> output directory
-        - sheets: Dict mapping analysis -> Excel sheet name
-        - stat_columns: Dict mapping analysis -> statistic column name
-    """
-    return {
-        "types": list(analyses_config.keys()),
-        "dirs": {k: f"{dir_out}/{v['subdir']}" for k, v in analyses_config.items()},
-        "sheets": {k: v["sheet"] for k, v in analyses_config.items()},
-        "stat_columns": {k: v["stat_column"] for k, v in analyses_config.items()},
-    }

@@ -10,6 +10,7 @@ nav:
   - Home: index.md
   - CLI reference: cli.md
   - Methods: methods.md
+  - Imputation, modelling and reporting: imputation.md
   - R packages: packages.md
   - Slides: slides.md
 

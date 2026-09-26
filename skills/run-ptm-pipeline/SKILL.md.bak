@@ -220,9 +220,9 @@ pipeline runs:
 ```bash
 ./ptm.sh help                      # the steps, read from the installation
 ./ptm.sh dpa_dpu --help            # one step's own options
-./ptm.sh render --report Analysis_seqlogo.Rmd \
-    --output_file Analysis_seqlogo.html --output_dir <dir_out>/PTM_DPA \
-    xlsx_file=<dir_out>/PTM_results.xlsx sheet=DPA
+./ptm.sh render --report ptm_statistics.qmd \
+    --output_file ptm_statistics.html --output_dir <dir_out> \
+    input_h5mu=<dir_out>/PTM_statistics.h5mu fdr_threshold=0.25
 ```
 
 Use it to try something out. Snakemake does not know about a file written this

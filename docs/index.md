@@ -56,15 +56,17 @@ than comparing two finished models.
 |---|---|---|---|
 | `mod/total` | Proteins (`var/protein_Id`) | Normalized log2 total-protein abundances, samples × proteins | No DPU or CorrectFirst result matrix. |
 | `mod/enriched` | Phosphosites (`var/site`, with `var/protein_Id` and `var/fasta.id`) | Normalized log2 site abundances, samples × sites | DPA and DPU results, aligned to these site rows. |
-| `mod/cf` | Phosphosites retained for CorrectFirst (`var/site`) | Corrected site abundances, samples × sites | CorrectFirst differential results, aligned to these site rows. |
+| `mod/enriched_CF` | The phosphosites of `enriched` whose protein the proteome quantified, in the enriched order (`var/site`) | CorrectFirst corrected site abundances, samples × sites; the imputed variants as layers | CorrectFirst and its protein-imputed variant, aligned to these site rows. |
 
 **DPU is attached to `enriched`; there is no DPU AnnData modality.** For every contrast, `mod/enriched/varm/dpa__<contrast>` and `mod/enriched/varm/dpu__<contrast>` hold numeric result matrices. The DPA effect and FDR columns are `diff.site` and `FDR.site`; the DPU columns are `diff_diff` and `FDR_I`. Unmoderated DPU is also stored as `mod/enriched/varm/dpu_unmoderated__<contrast>`. DPU models the site and protein separately and then compares their effects; its `varm` matrix is aligned to phosphosites, not to the protein rows in `total`.
 
-**CorrectFirst is attached to `cf`.** `mod/cf/X` contains the per-sample, per-site correction `enriched site abundance − matched total-protein abundance` on the log2 scale. The stored values are the unshifted correction; the model adds a constant 20 before fitting, which does not change contrasts. For every contrast, `mod/cf/varm/correct_first__<contrast>` holds the numeric site-level results, with effect `diff.site` and FDR `FDR.site`. A site can be present in `cf/X` without having a CorrectFirst differential result.
+**CorrectFirst is attached to `enriched_CF`.** `mod/enriched_CF/X` contains the per-sample, per-site correction `enriched site abundance − matched total-protein abundance + the sample's median total-protein abundance` on the log2 scale, the values the model saw; a site without a corrected value is an all-NA column. For every contrast, `mod/enriched_CF/varm/correct_first__<contrast>` holds the numeric site-level results, with effect `diff.site` and FDR `FDR.site`.
 
-Each result matrix has a matching `__present` mask, for example `mod/cf/varm/correct_first__<contrast>__present`. Within the same modality, `uns/prophosqua/result_keys/<method>` lists the matrix keys, `varm_columns/<key>` names their numeric columns, `varm_annotations/<key>` holds aligned nonnumeric result columns, and `varm_order/<key>` records the reconstructed table order. Use the mask to distinguish a missing result row from a present row with a missing numeric estimate; do not interpret every `var` feature as a tested result.
+**The imputed CorrectFirst variants are attached to `enriched_CF` too.** The layers `mod/enriched_CF/layers/correct_first_protein_imputed` and `.../correct_first_site_protein_imputed` hold their corrected abundances. Only the protein-imputed variant is fitted, with its results in `mod/enriched_CF/varm/correct_first_protein_imputed__<contrast>`; the site-imputed variant is its layer only. How each variant imputes and what the reports show is in [Imputation, modelling and reporting](imputation.md).
 
-In the HIF2a statistics delivery example, the three `X` shapes are `total` 12 × 7,334, `enriched` 12 × 31,601, and `cf` 12 × 26,201. Its CorrectFirst result mask marks 17,670 site rows as present. These dimensions depend on the analysis. The companion `PTM_inputs.h5mu` in `<dir_out>_statistics.zip` is a separate file, not a fourth modality in `PTM_statistics.h5mu`.
+Each result matrix has a matching `__present` mask, for example `mod/enriched_CF/varm/correct_first__<contrast>__present`. Within the same modality, `uns/prophosqua/result_keys/<method>` lists the matrix keys, `varm_columns/<key>` names their numeric columns, `varm_annotations/<key>` holds aligned nonnumeric result columns, and `varm_order/<key>` records the reconstructed table order. Use the mask to distinguish a missing result row from a present row with a missing numeric estimate; do not interpret every `var` feature as a tested result.
+
+In the HIF2a statistics delivery example, the three `X` shapes are `total` 12 × 7,334, `enriched` 12 × 31,601, and `enriched_CF` 12 × 26,201. Its result masks mark 25,349 site rows as present for CorrectFirst and 26,201 for the protein-imputed variant. These dimensions depend on the analysis. The companion `PTM_inputs.h5mu` in `<dir_out>_statistics.zip` is a separate file, not a fourth modality in `PTM_statistics.h5mu`.
 
 ## Workflow
 
@@ -76,13 +78,12 @@ flowchart TB
     DPA --> STATS["PTM_statistics.h5mu"]
     CF --> STATS
     STATS --> STATS_REPORT["ptm_statistics.html"]
-    STATS --> SEA["result_ptm_sea.cbor.gz"]
+    STATS --> SEA["result_ptm_sea.json.gz"]
     STATS --> PREP["intermediate_kinase_inputs.cbor"]
     PREP --> ASSIGN["intermediate_kinase_assignments.cbor"]
-    ASSIGN --> GSEA["result_kinase_gsea.cbor.gz"]
-    ASSIGN --> MOTIF["intermediate_mea_computation.cbor"]
-    PREP --> MOTIF
-    MOTIF --> MEA["result_mea.cbor.gz"]
+    ASSIGN --> GSEA["result_kinase_gsea.json.gz"]
+    ASSIGN --> MEA["result_mea.json.gz"]
+    PREP --> MEA
     SEA --> FINAL["PTM_results.h5mu"]
     GSEA --> FINAL
     MEA --> FINAL
@@ -97,7 +98,7 @@ flowchart TB
     FINAL --> ENRICH_ZIP["enrichment.zip (run gsea)"]
 ```
 
-Import reads both schema 2.0.0 DEA artifacts and their stored design and contrasts. `PTM_statistics.h5mu` is the shared read-only enrichment input. Each analysis directory holds three `result_*.cbor` files for PTM-SEA, kinase GSEA, and MEA, plus three `intermediate_*.cbor` handoffs for kinase inputs, kinase assignments, and the Python MEA computation. Final assembly writes the nine validated JSON documents into `PTM_results.h5mu`. The statistics QMD reads the statistics H5MU once. The enrichment QMD reads the final H5MU separately for DPA, DPU, and CorrectFirst, producing one HTML per analysis. The index links all four reports; the single Excel workbook is exported after them.
+Import reads both DEA artifacts, written by prolfquapp 2.10.5 (schema 2.1.0), through prolfquapp's `DEAResultReader`, with their stored design and contrasts. `PTM_statistics.h5mu` is the shared read-only enrichment input. Each analysis directory holds three `result_*.cbor` files for PTM-SEA, kinase GSEA, and MEA, plus three `intermediate_*.cbor` handoffs for kinase inputs, kinase assignments, and the Python MEA computation. Final assembly writes the nine validated JSON documents into `PTM_results.h5mu`. The statistics QMD reads the statistics H5MU once. The enrichment QMD reads the final H5MU separately for DPA, DPU, and CorrectFirst, producing one HTML per analysis. The index links all four reports; the single Excel workbook is exported after them.
 
 `ptm-pipeline run` builds the complete workflow, including final MuData, reports, delivery exports, and archives. It can also stop short: `run stats` ends at `PTM_statistics.h5mu` and `run gsea` at the final MuData and its enrichment artifacts, each writing its own archive, and `run dry` previews the jobs of any of the three. See the [CLI reference](cli.md) for every command. R commands run through the installed prophosqua `ptm.sh`; Python kinase calculations use `ptm-kinase-cbor`, installed with ptm-pipeline. Both declare their installed source dependencies.
 

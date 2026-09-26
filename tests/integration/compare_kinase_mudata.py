@@ -15,7 +15,7 @@ from ptm_pipeline.mudata_values import unpack
 
 
 def read_result(root: Path, stage: str, analysis: str):
-    modality = "enriched" if analysis == "DPA" else "cf"
+    modality = "enriched_CF" if analysis == "CF" else "enriched"
     with h5py.File(root / f"{stage}_{analysis}.h5mu") as handle:
         return unpack(
             read_elem(

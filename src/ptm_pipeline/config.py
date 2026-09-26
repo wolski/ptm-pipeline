@@ -71,6 +71,9 @@ def generate_config(
         "fdr": fdr,
         "log2fc": log2fc,
 
+        # Contaminants are kept, as in the DEA; true drops the features it flags (CON)
+        "remove_contaminants": False,
+
         # DEA directories
         "phospho_dea_dir": phospho_path,
         "protein_dea_dir": protein_path,

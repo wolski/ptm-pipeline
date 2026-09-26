@@ -1,4 +1,5 @@
-"""Run kinase-library calculations with compact CBOR handoffs."""
+"""Run kinase-library calculations: the motif scan as a CBOR handoff, the motif
+enrichment as the protsea document prophosqua reads."""
 
 import gzip
 import importlib.metadata
@@ -30,11 +31,7 @@ def dependencies() -> None:
 
 
 def _artifact_stream(path: Path, mode: str):
-    """Open a stage artifact, gzipped when its name says so.
-
-    prophosqua writes and reads these compressed: the payloads are text-like and
-    reach hundreds of megabytes per analysis.
-    """
+    """Open a stage artifact, gzipped when its name says so."""
     if path.name.endswith(".gz"):
         return gzip.open(path, mode)
     return path.open(mode)
@@ -118,7 +115,7 @@ def scan(input_file: Path, output: Path) -> None:
 
 @app.command
 def enrich(input_file: Path, assignments: Path, output: Path, *, threads: int = 4) -> None:
-    """Build motif enrichment from kinase preparation CBOR artifacts."""
+    """Write the motif enrichment of one analysis as a gzipped protsea document."""
     from kinase_library.enrichment import mea
 
     source = _read_stage(input_file, "KinaseInputs")
@@ -129,7 +126,6 @@ def enrich(input_file: Path, assignments: Path, output: Path, *, threads: int = 
         raise ValueError("Kinase CBOR preparations come from different statistics")
     ranks = mudata_values.unpack(source["result"])["ranks"]
     settings = source["settings"]
-    results = []
     gsea_document: dict[str, dict[str, Any]] = {"data": {}, "rank_lists": {}}
     for contrast, data in ranks.items():
         ranked = mea.RankedPhosData(
@@ -142,25 +138,24 @@ def enrich(input_file: Path, assignments: Path, output: Path, *, threads: int = 
             permutation_num=int(settings["permutations"]),
             threads=threads,
         )
-        result = fitted.enrichment_results.reset_index()
-        result.insert(0, "contrast", contrast)
-        results.append(result)
         serialized = fitted.to_gsea_result_data(contrast)
         gsea_document["data"].update(serialized["data"])
         gsea_document["rank_lists"].update(serialized["rank_lists"])
-    _write_stage(
-        source,
-        output,
-        "MotifEnrichment",
-        {
-            "mea_results": pd.concat(results, ignore_index=True),
-            "gsea_json": json.dumps(
-                gsea_document,
-                allow_nan=False,
-                separators=(",", ":"),
-            ),
-        },
-    )
+    _write_gsea_document(output, gsea_document)
+
+
+def _write_gsea_document(output: Path, document: dict[str, Any]) -> None:
+    """Write a GSEA result document gzipped, as protsea::read_gsea_json() reads it."""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(prefix=".ptm-gsea-", suffix=".json.gz", dir=output.parent)
+    os.close(descriptor)
+    path = Path(temporary)
+    try:
+        with gzip.open(path, "wt", encoding="utf-8") as handle:
+            json.dump(document, handle, allow_nan=False, separators=(",", ":"))
+        os.replace(path, output)
+    finally:
+        path.unlink(missing_ok=True)
 
 
 def main() -> None:

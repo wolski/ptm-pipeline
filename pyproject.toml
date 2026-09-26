@@ -28,6 +28,9 @@ dev = [
 ]
 
 [dependency-groups]
+dev = [
+    "pytest>=8",
+]
 docs = [
     "pymdown-extensions>=11,<12",
     "zensical==0.0.43",

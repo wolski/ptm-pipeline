@@ -20,7 +20,7 @@ class DiscoverAnnDataTest(unittest.TestCase):
                 output.parent.mkdir()
                 with h5py.File(output, "w") as handle:
                     group = handle.create_group("uns/prolfquapp")
-                    group["schema_version"] = "2.0.0"
+                    group["schema_version"] = "2.1.0"
                     group["contrasts/contrast_name"] = [
                         "treatment_vs_control",
                         "second_vs_control",
@@ -32,7 +32,7 @@ class DiscoverAnnDataTest(unittest.TestCase):
                 ["treatment_vs_control", "second_vs_control"],
             )
             with h5py.File(selected, "r+") as handle:
-                handle["uns/prolfquapp/schema_version"][()] = "1.0.0"
+                handle["uns/prolfquapp/schema_version"][()] = "2.0.0"
             with self.assertRaisesRegex(ValueError, "Unsupported"):
                 read_dea_contrasts(selected)
 

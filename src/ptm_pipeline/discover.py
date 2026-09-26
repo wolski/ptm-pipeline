@@ -35,11 +35,16 @@ def find_dea_anndata(dea_dir: Path) -> Path | None:
     return matches[0] if matches else None
 
 
+# The PTM import reads what prolfquapp 2.10.5 writes: schema 2.1.0, with the
+# imputedData layer and the feature keys in every result frame.
+SUPPORTED_DEA_SCHEMAS = {"2.1.0"}
+
+
 def read_dea_contrasts(path: Path) -> list[str]:
     """Read the stored contrast names without guessing from an annotation file."""
     with h5py.File(path) as handle:
         metadata = handle["uns/prolfquapp"]
-        if metadata["schema_version"].asstr()[()] != "2.0.0":
+        if metadata["schema_version"].asstr()[()] not in SUPPORTED_DEA_SCHEMAS:
             raise ValueError(f"Unsupported prolfquapp schema in {path}")
         names = metadata["contrasts/contrast_name"].asstr()[()]
         return np.atleast_1d(names).tolist()
