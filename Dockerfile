@@ -16,19 +16,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libharfbuzz-dev libfribidi-dev libpng-dev libtiff5-dev libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# R packages (delta — only what prolfquapp doesn't have)
-# Install clusterProfiler and other deps first (prophosqua vignettes need them)
-RUN R -e "pak::pkg_install(c( \
-    'bioc::anndataR', 'bioc::rhdf5', \
-    'bioc::clusterProfiler', 'bioc::fgsea', 'bioc::enrichplot', 'bioc::limpa', \
-    'any::ggseqlogo', 'any::patchwork', 'any::DT', 'any::here', 'any::rmarkdown', \
-    'any::secretbase', \
-    'github::fgcz/fgczQuartoTemplate', \
-    'github::fgcz/prolfqua', 'github::prolfqua/prolfquapp', \
-    'github::prolfqua/protsea' \
-))"
+# The R packages come through prophosqua: its Imports and Suggests (the
+# reports need the suggested ones) and the Remotes of prophosqua and its
+# dependencies, which pin prolfqua, prolfquapp, protsea, fgczQuartoTemplate and
+# wolski/anndataR to GitHub.
+RUN R -e "pak::pkg_install('github::prolfqua/prophosqua', dependencies = TRUE)"
 
-# prophosqua: build_vignettes so Rmd files are available via system.file('doc', ...)
+# prophosqua again with its vignettes built: the reports are installed from
+# vignettes/ into doc/.
 RUN R -e "install.packages('remotes')" \
  && R -e "remotes::install_github('prolfqua/prophosqua', dependencies=FALSE, build_vignettes=TRUE, upgrade='never')"
 
