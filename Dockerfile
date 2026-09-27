@@ -20,6 +20,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # reports need the suggested ones) and the Remotes of prophosqua and its
 # dependencies, which pin prolfqua, prolfquapp, protsea, fgczQuartoTemplate and
 # wolski/anndataR to GitHub.
+# pak cannot replace itself during an install, and prophosqua's suggested
+# devtools needs a newer pak than the base image has, so pak is updated first.
+RUN R -e "pak::pak_update()"
 RUN R -e "pak::pkg_install('github::prolfqua/prophosqua', dependencies = TRUE)"
 
 # prophosqua again with its vignettes built: the reports are installed from
