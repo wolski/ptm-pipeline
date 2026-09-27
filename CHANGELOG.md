@@ -1,5 +1,9 @@
 # ptm-pipeline 0.3.0
 
+- `imputation.md`: the reports, the workbook and the enrichments use only observed site estimates, as prophosqua now applies it; the workbook's `estimate_counts` sheet and the report summaries count the imputed ones. They show the protein-imputed CorrectFirst variant (A) as CorrectFirst, and DPU holds only the matched sites.
+
+- `ptm-kinase-cbor scan` names each assignment by the sequence window it was given, not by kinase-library's spelling of it with the phosphorylated residue in lower case.
+
 - Enrichment results stay out of MuData and are protsea documents: each analysis directory holds `result_ptm_sea.json.gz`, `result_kinase_gsea.json.gz` and `result_mea.json.gz`, and `PTM_results.h5mu` only names them. `ptm-kinase-cbor enrich` writes the kinase-library MEA document straight to `result_mea.json.gz`, instead of packing its JSON text into a CBOR envelope that it then read back; with the four contrasts of the MiMB example that text no longer fit numpy's fixed-width strings. The prophosqua command `enrich_cbor` is `enrich`, and the MEA tabulation rule is gone: prophosqua derives the MEA tables from the document.
 
 - New setting `remove_contaminants`, false by default: prophosqua keeps the sites and proteins the DEAs flag as contaminants unless it is true. `helpers.py` no longer carries the DEA-path helpers (`get_dea_xlsx_path()`, `get_parquet_path()`, `get_dea_yaml_path()`, `build_analysis_lookups()`), unused since the DEAs are read from their AnnData files, and the three skills are parked as `SKILL.md.bak` until they are brought up to date.

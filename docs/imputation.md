@@ -4,7 +4,7 @@ title: Imputation, modelling and reporting
 
 # Imputation, modelling and reporting
 
-Decision: every analysis is computed from all models, imputed or not, and reports, counts and the proptm3d viewer are to show only rows whose site-level estimate is not imputed. Today they still show all rows; see the implementation status at the end.
+Decision: every analysis is computed from all models, imputed or not, and reports, counts, the workbook, the enrichments and the proptm3d viewer use only rows whose site-level estimate is not imputed. The reports, workbook and enrichments do; proptm3d does not yet, see the implementation status at the end.
 
 ## Terms
 
@@ -57,11 +57,17 @@ All of CorrectFirst lives in the `enriched_CF` modality, which replaces `cf`. It
 | Analysis | Computed from | Shown in reports, counts and proptm3d |
 |:--|:--|:--|
 | DPA | site `lm_impute` models, imputed and not | rows whose site `estimate_type` is `observed` |
-| DPU | site and protein `lm_impute` models, imputed and not | rows whose site `estimate_type` is `observed`; the protein estimate may be imputed |
-| CF, A | `lm_impute` on the corrected values | rows whose `estimate_type` is `observed`: no LOD refit in the CF model; the protein value may be imputed |
+| DPU | site and protein `lm_impute` models of the matched sites, imputed and not | rows whose site `estimate_type` is `observed`; the protein estimate may be imputed |
+| CF | `lm_impute` on the corrected values | nothing; CF is kept in MuData |
+| A | `lm_impute` on the corrected values | as CorrectFirst: rows whose `estimate_type` is `observed`; the protein value may be imputed |
 | B | not fitted | nothing; B is its layer only |
+| PTM-SEA, Kinase GSEA, MEA | the observed rows of DPA, DPU and A | their results |
 
-A and B are stored in `PTM_statistics.h5mu` and `PTM_results.h5mu` only; no report, workbook or viewer shows them yet.
+prophosqua applies the rule in `PTM_statistics$get_tables()`, which returns the observed rows by default and every row with `estimates = "all"`. `get_estimate_counts()` counts the rows of each analysis and contrast by estimate type before the filter; the statistics report's Summary tabs and the workbook's `estimate_counts` sheet show it. MuData keeps every row.
+
+The reports, the workbook and the enrichments show A as CorrectFirst, through `PTM_statistics$get_cf_reported()`: A corrects every matched site, like DPU, and on o43037 both have 26,201 rows, 17,238 of them observed. CF and B are stored in `PTM_statistics.h5mu` and `PTM_results.h5mu` only.
+
+DPU holds only the matched sites: a site whose protein has no result has no usage difference, so `test_diff()` returns no row for it.
 
 ## Implementation status
 
@@ -71,6 +77,6 @@ A and B are stored in `PTM_statistics.h5mu` and `PTM_results.h5mu` only; no repo
 | CF, A and B computed with the DEA formula | done, prophosqua |
 | Where the layers go | done: `enriched_CF` with its own sites, prophosqua |
 | CF and A rows count their imputed protein values; B is its layer only | done, prophosqua |
-| Reports show and count only non-imputed site estimates | to do; the reports show all rows today |
+| Reports, workbook and enrichments use only non-imputed site estimates, and count both | done, prophosqua |
 | proptm3d shows and counts only non-imputed site estimates | to do; proptm3d still reads `mod/cf`, and today it shows all rows with an Estimate filter (default All), counts imputed rows in "Sites with results", and flags a row as imputed when the site or the protein estimate is |
 | Non-imputed rows of `lm_impute` equal those of `lm` | open: `diff` and `df` are identical; `std.error`, `statistic`, `p.value` and `FDR` differ (in a 300-protein simulation by up to 0.02, 0.12, 0.007 and 0.14), because the imputed rows enter the empirical-Bayes variance prior and the FDR adjustment |

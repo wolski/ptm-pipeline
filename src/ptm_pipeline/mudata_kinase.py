@@ -107,9 +107,13 @@ def scan(input_file: Path, output: Path) -> None:
     percentiles = getattr(experiment, f"{settings['kin_type']}_percentiles")
     stacked = percentiles.stack()
     matches = stacked[stacked >= settings["threshold"]].reset_index()
-    matches.columns = ["SequenceWindow", "Kinase", "Value"]
-    assignments = matches[["Kinase", "SequenceWindow"]].copy()
-    assignments.columns = ["term", "gene"]
+    matches.columns = ["Sequence", "Kinase", "Value"]
+    # kinase-library scores its own spelling of a window, the phosphorylated
+    # residue in lower case; the assignments name the window they were given.
+    submitted = experiment.data.set_index("Sequence")["SequenceWindow"]
+    assignments = pd.DataFrame(
+        {"term": matches["Kinase"].to_numpy(), "gene": matches["Sequence"].map(submitted).to_numpy()}
+    )
     _write_stage(source, output, "KinaseAssignments", {"term2gene": assignments})
 
 
