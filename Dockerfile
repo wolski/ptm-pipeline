@@ -14,6 +14,7 @@ FROM docker.io/prolfqua/prolfquapp:2.0.10
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     libharfbuzz-dev libfribidi-dev libpng-dev libtiff5-dev libjpeg-dev \
+    libcurl4-openssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # The R packages come through prophosqua: its Imports and Suggests (the
@@ -22,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # wolski/anndataR to GitHub.
 # pak cannot replace itself during an install, and prophosqua's suggested
 # devtools needs a newer pak than the base image has, so pak is updated first.
-RUN R -e "install.packages('pak')"
+RUN R -e "install.packages('pak'); stopifnot(packageVersion('pak') >= '0.11')"
 RUN R -e "pak::pkg_install('github::prolfqua/prophosqua', dependencies = TRUE)"
 
 # prophosqua again with its vignettes built: the reports are installed from
