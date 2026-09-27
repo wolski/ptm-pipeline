@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # wolski/anndataR to GitHub.
 # pak cannot replace itself during an install, and prophosqua's suggested
 # devtools needs a newer pak than the base image has, so pak is updated first.
-RUN R -e "pak::pak_update()"
+RUN R -e "install.packages('pak')"
 RUN R -e "pak::pkg_install('github::prolfqua/prophosqua', dependencies = TRUE)"
 
 # prophosqua again with its vignettes built: the reports are installed from
