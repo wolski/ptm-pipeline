@@ -1930,9 +1930,8 @@ wheels = [
 [[package]]
 name = "proptm3d"
 version = "0.1.0"
-source = { git = "https://github.com/prolfqua/proptm3d#4b91d8e180f83dafb9fa5860ad085d944392d80a" }
+source = { git = "https://github.com/prolfqua/proptm3d#13a13dd4be2fee2c61adaac5a56f1bfdae7a2b03" }
 dependencies = [
-    { name = "bfabric", extra = ["transfer"] },
     { name = "biopython" },
     { name = "cyclopts" },
     { name = "h5py" },
@@ -1942,7 +1941,6 @@ dependencies = [
     { name = "platformdirs" },
     { name = "polars" },
     { name = "requests" },
-    { name = "rich" },
 ]
 
 [[package]]
