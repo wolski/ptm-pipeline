@@ -4,7 +4,7 @@ title: Imputation, modelling and reporting
 
 # Imputation, modelling and reporting
 
-Decision: every analysis is computed from all models, imputed or not, and reports, counts, the workbook, the enrichments and the proptm3d viewer use only rows whose site-level estimate is not imputed. The reports, workbook and enrichments do; proptm3d does not yet, see the implementation status at the end.
+Decision: every analysis is computed from all models, imputed or not, and reports, counts, the workbook, the enrichments and the proptm3d viewer use only rows whose site-level estimate is not imputed.
 
 ## Terms
 
@@ -15,7 +15,7 @@ Decision: every analysis is computed from all models, imputed or not, and report
 | route `complete` | No cell is missing. |
 | route `fitted` | The missing cells come from the feature's `lm` fitted on its observed values. |
 | route `lod_refit` | The missing cells come from the LOD refit. |
-| `imputation` | varm block beside `imputedData` with `n_observed` and `n_imputed` per feature; each feature's route is in `uns/prolfquapp/varm_annotations/imputation/route`. |
+| `imputation` | varm table of the DEA beside `imputedData`: per feature its keys, `n_observed`, `n_imputed` and `route`. |
 | `n_protein_imputed` | CorrectFirst result column: how many of the corrected values in a row's fit used an imputed protein value. |
 
 ## CorrectFirst variants
@@ -39,15 +39,15 @@ Expected sizes:
 
 ## Where the layers go
 
-All of CorrectFirst lives in the `enriched_CF` modality, which replaces `cf`. It has its own sites: those of `enriched` whose protein the proteome quantified, n_A of them, in the enriched order, and it lines up with `enriched` by site id. Every matrix has the modality's shape, n_samples × n_A; a site a variant does not correct is an all-NA column in its matrix and `FALSE` in its results' `__present` mask.
+All of CorrectFirst lives in the `enriched_CF` modality, which replaces `cf`. It has its own sites: those of `enriched` whose protein the proteome quantified, n_A of them, in the enriched order, and it lines up with `enriched` by site id. Every matrix has the modality's shape, n_samples × n_A; a site a variant does not correct is an all-NA column in its matrix and has a missing `site` in its result tables.
 
-| Slot | Content | Sites with a value in o43037 |
+| Slot | Content | Sites with a value, example run o43037 |
 |:--|:--|:--|
 | `var` | the sites of `enriched` whose protein the proteome quantified | 26,201 |
 | `X` | CF | 25,349 |
 | `layers/correct_first_protein_imputed` | A | 26,201 |
 | `layers/correct_first_site_protein_imputed` | B, not fitted | 26,201 |
-| `varm/<key>__<contrast>`, `__present` | results of CF and A | as the matrices |
+| `varm/<key>__<contrast>` | result data frames of CF and A, one per contrast | as the matrices |
 | `uns/prophosqua` | CF report data | – |
 
 `enriched` keeps the site DEA's own layers and the DPA and DPU results.
@@ -78,5 +78,5 @@ DPU holds only the matched sites: a site whose protein has no result has no usag
 | Where the layers go | done: `enriched_CF` with its own sites, prophosqua |
 | CF and A rows count their imputed protein values; B is its layer only | done, prophosqua |
 | Reports, workbook and enrichments use only non-imputed site estimates, and count both | done, prophosqua |
-| proptm3d shows and counts only non-imputed site estimates | to do; proptm3d still reads `mod/cf`, and today it shows all rows with an Estimate filter (default All), counts imputed rows in "Sites with results", and flags a row as imputed when the site or the protein estimate is |
+| proptm3d shows and counts only non-imputed site estimates | done; proptm3d reads the direct `varm` data frames, reports A from `enriched_CF`, and exports only rows whose site estimate is `observed` |
 | Non-imputed rows of `lm_impute` equal those of `lm` | open: `diff` and `df` are identical; `std.error`, `statistic`, `p.value` and `FDR` differ (in a 300-protein simulation by up to 0.02, 0.12, 0.007 and 0.14), because the imputed rows enter the empirical-Bayes variance prior and the FDR adjustment |

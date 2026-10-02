@@ -26,6 +26,9 @@ def generate_config(
     fdr: float = 0.25,
     log2fc: float = 0.5,
     run_kinase: bool = True,
+    run_proptm3d: bool = True,
+    protein_peptide_dir: Path | None = None,
+    total_peptide_h5ad: Path | None = None,
 ) -> dict:
     """Generate pipeline configuration dictionary.
 
@@ -39,6 +42,11 @@ def generate_config(
         project_dir: Project root for making paths relative
         fdr: FDR threshold for downstream analyses
         log2fc: log2 fold change threshold for downstream analyses
+        run_proptm3d: Prepare and bundle the proptm3d browser; needs the
+            organism's AlphaFold cache (ptm-pipeline setup)
+        protein_peptide_dir: Optional peptide-level total DEA folder
+        total_peptide_h5ad: Its AnnData artifact; carried into the MuData,
+            not analysed
 
     Returns:
         Configuration dictionary ready for YAML serialization
@@ -62,10 +70,11 @@ def generate_config(
     else:
         dir_out = f"PTM_{date.today().strftime('%Y%m%d')}"
 
-    return {
+    config = {
         # Output configuration
         "dir_out": dir_out,
         "run_kinase": run_kinase,
+        "run_proptm3d": run_proptm3d,
 
         # Significance thresholds for downstream analyses and reports
         "fdr": fdr,
@@ -131,6 +140,11 @@ def generate_config(
             "trim_to": 15,
         },
     }
+    if protein_peptide_dir is not None:
+        config["protein_peptide_dea_dir"] = artifact_path(protein_peptide_dir)
+    if total_peptide_h5ad is not None:
+        config["total_peptide_h5ad"] = artifact_path(total_peptide_h5ad)
+    return config
 
 
 def write_config(config: dict, output_path: Path) -> None:
@@ -139,6 +153,36 @@ def write_config(config: dict, output_path: Path) -> None:
         # Custom representer to avoid aliases
         yaml.Dumper.ignore_aliases = lambda *args: True
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+
+
+# Kept out of ptm_config.yaml: that file is an input of the first rule, so
+# editing the upload target there would rerun the whole analysis.
+UPLOAD_TARGET_FILE = "bfabric_upload.yaml"
+
+
+def write_upload_target(project_dir: Path, order_id: int | None, workunit_name: str) -> Path:
+    """Write the B-Fabric order and base workunit name the upload command uses."""
+    path = project_dir / UPLOAD_TARGET_FILE
+    path.write_text(
+        yaml.safe_dump({"order_id": order_id, "workunit_name": workunit_name}, sort_keys=False)
+    )
+    return path
+
+
+def read_upload_target(project_dir: Path) -> tuple[int, str]:
+    """Read the B-Fabric order and base workunit name written by init."""
+    path = project_dir / UPLOAD_TARGET_FILE
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"Missing {path}; rerun 'ptm-pipeline init' or write order_id and workunit_name into it"
+        )
+    target = yaml.safe_load(path.read_text()) or {}
+    order_id, workunit_name = target.get("order_id"), target.get("workunit_name")
+    if not isinstance(order_id, int) or order_id <= 0:
+        raise ValueError(f"{path}: order_id must be a positive B-Fabric order ID, not {order_id!r}")
+    if not isinstance(workunit_name, str) or not workunit_name.strip():
+        raise ValueError(f"{path}: workunit_name must not be empty")
+    return order_id, workunit_name
 
 
 def config_to_yaml_string(config: dict) -> str:

@@ -2,9 +2,12 @@
 # Run ptm-pipeline commands inside the Docker image.
 # - Pulls the image from GHCR if not available locally.
 # - Mounts the current directory to /work.
+# - Keeps caches, among them proptm3d's AlphaFold cache, in .cache/ of the
+#   current directory, so 'setup' fills it once per folder.
 # - All arguments are passed to ptm-pipeline inside the container.
 #
 # Usage:
+#   ./ptm-pipeline.sh setup MOUSE
 #   ./ptm-pipeline.sh init default DEA_data/ output/
 #   ./ptm-pipeline.sh run output/
 #   ./ptm-pipeline.sh --help
@@ -28,6 +31,7 @@ usage() {
     echo "  --image-repo      Image repository (default: $IMAGE_REPO)"
     echo ""
     echo "Examples:"
+    echo "  $0 setup MOUSE"
     echo "  $0 init default DEA_data/ output/"
     echo "  $0 run output/"
     echo "  $0 run dry output/"
@@ -91,6 +95,7 @@ fi
 $DOCKER run --rm $DOCKER_ARGS \
     --user "$(id -u):$(id -g)" \
     --mount "type=bind,source=$(pwd),target=/work" \
+    --env XDG_CACHE_HOME=/work/.cache \
     -w /work \
     "$IMAGE" \
     ptm-pipeline "${CONTAINER_ARGS[@]}"

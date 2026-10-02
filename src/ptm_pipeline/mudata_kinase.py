@@ -1,15 +1,15 @@
-"""Run kinase-library calculations: the motif scan as a CBOR handoff, the motif
-enrichment as the protsea document prophosqua reads."""
+"""Run kinase-library calculations: the motif scan as a gzipped JSON handoff,
+the motif enrichment as the protsea document prophosqua reads."""
 
 import gzip
 import importlib.metadata
 import json
+import math
 import os
 import tempfile
 from pathlib import Path
 from typing import Any
 
-import cbor2
 import cyclopts
 import numpy as np
 import pandas as pd
@@ -38,10 +38,10 @@ def _artifact_stream(path: Path, mode: str):
 
 
 def _read_stage(path: Path, expected: str) -> dict[str, Any]:
-    with _artifact_stream(path, "rb") as handle:
-        artifact = cbor2.load(handle)
+    with _artifact_stream(path, "rt") as handle:
+        artifact = json.load(handle)
     if artifact["format"] != "prophosqua_stage" or artifact["version"] != "1.0.0":
-        raise ValueError(f"Unsupported PTM CBOR artifact: {path}")
+        raise ValueError(f"Unsupported PTM stage file: {path}")
     if artifact["stage"] != expected:
         raise ValueError(f"Expected {expected}, found {artifact['stage']}")
     return artifact
@@ -53,14 +53,17 @@ def _plain(value: Any) -> Any:
     if isinstance(value, (list, tuple, np.ndarray)):
         return [_plain(item) for item in value]
     if isinstance(value, np.generic):
-        return value.item()
+        value = value.item()
+    # The packed values carry their own missing masks; JSON has no NaN.
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
     return value
 
 
 def _write_stage(source: dict[str, Any], output: Path, stage: str, result: dict[str, Any]) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     suffix = ".gz" if output.name.endswith(".gz") else ""
-    descriptor, temporary = tempfile.mkstemp(prefix=".ptm-cbor-", suffix=suffix, dir=output.parent)
+    descriptor, temporary = tempfile.mkstemp(prefix=".ptm-stage-", suffix=suffix, dir=output.parent)
     os.close(descriptor)
     path = Path(temporary)
     try:
@@ -72,8 +75,8 @@ def _write_stage(source: dict[str, Any], output: Path, stage: str, result: dict[
             "statistics_sha256": source["statistics_sha256"],
             "result": _plain(mudata_values.pack(result)),
         }
-        with _artifact_stream(path, "wb") as handle:
-            cbor2.dump(artifact, handle)
+        with _artifact_stream(path, "wt") as handle:
+            json.dump(artifact, handle, allow_nan=False, separators=(",", ":"))
         restored = _read_stage(path, stage)
         recovered = mudata_values.unpack(restored["result"])
         for name, value in result.items():
@@ -84,7 +87,7 @@ def _write_stage(source: dict[str, Any], output: Path, stage: str, result: dict[
                     check_dtype=False,
                 )
             elif recovered[name] != value:
-                raise ValueError(f"CBOR stage round-trip changed {name}")
+                raise ValueError(f"Stage file round-trip changed {name}")
         os.replace(path, output)
     finally:
         path.unlink(missing_ok=True)
@@ -92,7 +95,7 @@ def _write_stage(source: dict[str, Any], output: Path, stage: str, result: dict[
 
 @app.command
 def scan(input_file: Path, output: Path) -> None:
-    """Build kinase assignments from a KinaseInputs CBOR artifact."""
+    """Build kinase assignments from a KinaseInputs stage file."""
     from kinase_library.objects import phosphoproteomics
 
     source = _read_stage(input_file, "KinaseInputs")
@@ -127,7 +130,7 @@ def enrich(input_file: Path, assignments: Path, output: Path, *, threads: int = 
     if (source["analysis"], source["statistics_sha256"]) != (
         assigned["analysis"], assigned["statistics_sha256"]
     ):
-        raise ValueError("Kinase CBOR preparations come from different statistics")
+        raise ValueError("Kinase preparations come from different statistics")
     ranks = mudata_values.unpack(source["result"])["ranks"]
     settings = source["settings"]
     gsea_document: dict[str, dict[str, Any]] = {"data": {}, "rank_lists": {}}

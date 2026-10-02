@@ -7,7 +7,7 @@ from pathlib import Path
 import h5py
 
 from ptm_pipeline.config import generate_config
-from ptm_pipeline.discover import find_dea_anndata, read_dea_contrasts
+from ptm_pipeline.discover import find_all_dea_folders, find_dea_anndata, read_dea_contrasts
 
 
 class DiscoverAnnDataTest(unittest.TestCase):
@@ -46,6 +46,35 @@ class DiscoverAnnDataTest(unittest.TestCase):
         self.assertNotIn("annot_file", config)
         self.assertEqual(config["gsea"]["max_size"], 500)
         self.assertEqual(config["kinaselib"]["gsea_max_size"], 5000)
+        self.assertIs(config["run_proptm3d"], True)
+        self.assertIs(generate_config(root / "phospho", root / "protein", None, None, [], run_proptm3d=False)["run_proptm3d"], False)
+
+    def test_peptide_level_total_folder_is_found_apart_from_the_pair(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in (
+                "DEA_20260926_WUphospho_STY_vsn",
+                "DEA_20260926_WUtotal_proteome_vsn",
+                "DEA_20260926_WUtotal_peptide_vsn",
+            ):
+                (root / name).mkdir()
+            names = {kind: [d.name for d in dirs] for kind, dirs in find_all_dea_folders(root).items()}
+            self.assertEqual(names, {
+                "phospho": ["DEA_20260926_WUphospho_STY_vsn"],
+                "protein": ["DEA_20260926_WUtotal_proteome_vsn"],
+                "protein_peptide": ["DEA_20260926_WUtotal_peptide_vsn"],
+            })
+
+    def test_config_names_peptide_input_only_when_given(self):
+        root = Path("/project")
+        config = generate_config(
+            root / "phospho", root / "protein", None, None, [], project_dir=root,
+            protein_peptide_dir=root / "protein_peptide",
+            total_peptide_h5ad=root / "protein_peptide" / "AnnData.h5ad",
+        )
+        self.assertEqual(config["protein_peptide_dea_dir"], "protein_peptide")
+        self.assertEqual(config["total_peptide_h5ad"], "protein_peptide/AnnData.h5ad")
+        self.assertNotIn("total_peptide_h5ad", generate_config(root / "phospho", root / "protein", None, None, []))
 
 
 if __name__ == "__main__":

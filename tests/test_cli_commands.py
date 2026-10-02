@@ -13,6 +13,8 @@ from ptm_pipeline.cli import (
     run_dry,
     run_gsea,
     run_stats,
+    setup,
+    update,
 )
 from ptm_pipeline.init import copy_template_files
 
@@ -73,11 +75,13 @@ def test_clean_init_preserves_outputs_and_unrelated_files(tmp_path):
     (project / "Makefile").write_text("my own targets\n")
     (project / "src").mkdir()
     (project / "src" / "notes.R").write_text("keep")
+    (project / "bfabric_upload.yaml").write_text("order_id: 1\nworkunit_name: x\n")
 
     clean_init(project)
 
     assert not (project / "Snakefile").exists()
     assert not (project / "ptm_config.yaml").exists()
+    assert not (project / "bfabric_upload.yaml").exists()
     assert not (project / "helpers.py").exists()
     assert not (project / "ptm.sh").exists()
     assert (project / "PTM_results.h5mu").exists()
@@ -150,8 +154,75 @@ def test_template_copy_does_not_create_a_makefile(tmp_path):
     assert copied == [
         "Snakefile",
         "helpers.py",
-        "index.qmd",
-        "ptm-pipeline-overview.svg",
         "ptm.sh",
     ]
     assert not (tmp_path / "Makefile").exists()
+
+
+def test_update_installs_pushed_commits_then_refreshes_with_the_new_tool(tmp_path):
+    project = initialized_project(tmp_path)
+    with (
+        patch("ptm_pipeline.update.subprocess.run") as execute,
+        patch("ptm_pipeline.update.shutil.which", return_value="/bin/ptm-pipeline"),
+    ):
+        execute.return_value.returncode = 0
+        update(project)
+
+    commands = [call.args[0] for call in execute.call_args_list]
+    assert commands[0][:2] == ["Rscript", "--vanilla"]
+    assert commands[0][2].endswith("update_r_packages.R")
+    assert commands[1] == ["uv", "tool", "install", "--reinstall", "git+https://github.com/wolski/ptm-pipeline"]
+    assert commands[2] == ["/bin/ptm-pipeline", "update", str(project), "--no-install"]
+
+
+def test_update_without_install_refreshes_the_files_and_keeps_the_config(tmp_path):
+    project = initialized_project(tmp_path)
+    config = (project / "ptm_config.yaml").read_text()
+    with (
+        patch("ptm_pipeline.update.copy_template_files", return_value=["Snakefile", "helpers.py", "ptm.sh"]) as copy,
+        patch("ptm_pipeline.cli.subprocess.run") as execute,
+    ):
+        execute.return_value.returncode = 0
+        update(project, install=False)
+
+    copy.assert_called_once_with(project.resolve())
+    assert execute.call_args.args[0][-1] == "--dry-run"
+    assert (project / "ptm_config.yaml").read_text() == config
+
+
+def test_update_refuses_a_directory_that_is_not_a_project(tmp_path):
+    with patch("ptm_pipeline.update.subprocess.run") as execute, pytest.raises(SystemExit):
+        update(tmp_path)
+    execute.assert_not_called()
+
+
+def test_setup_caches_the_organism_through_proptm3d():
+    with (
+        patch("ptm_pipeline.cli.shutil.which", return_value="/bin/proptm3d"),
+        patch("ptm_pipeline.cli.subprocess.run") as execute,
+    ):
+        execute.return_value.returncode = 0
+        setup("MOUSE")
+    assert execute.call_args.args[0] == ["/bin/proptm3d", "cache", "context", "MOUSE"]
+
+
+def test_setup_stops_when_proptm3d_fails_or_is_missing():
+    with (
+        patch("ptm_pipeline.cli.shutil.which", return_value="/bin/proptm3d"),
+        patch("ptm_pipeline.cli.subprocess.run") as execute,
+        pytest.raises(SystemExit) as error,
+    ):
+        execute.return_value.returncode = 3
+        setup("MOUSE")
+    assert error.value.code == 3
+    with patch("ptm_pipeline.cli.shutil.which", return_value=None), pytest.raises(SystemExit) as error:
+        setup("MOUSE")
+    assert error.value.code == 1
+
+
+def test_init_default_passes_no_proptm3d_to_the_project(tmp_path):
+    from ptm_pipeline.cli import init_default
+
+    with patch("ptm_pipeline.cli.init_project", return_value=True) as initialize:
+        init_default(tmp_path, tmp_path / "project", proptm3d=False)
+    assert initialize.call_args.kwargs["run_proptm3d"] is False

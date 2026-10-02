@@ -6,6 +6,7 @@
 #   make run       - run all pipelines
 #   make clean     - remove PTM_* output dirs and unzipped data dirs
 # Requires: ptm-pipeline installed
+# The test projects skip the proptm3d step: the runner has no AlphaFold cache.
 #
 # Docker integration tests:
 #   make docker-build                  - build image from ../Dockerfile
@@ -37,7 +38,7 @@ init: unzip
 	@for d in $(DATA_DIRS); do \
 		out=$(DATA_DIR)/PTM_$$(basename "$$d"); \
 		echo "Initializing $$d -> $$out"; \
-		ptm-pipeline init default "$$d" "$$out" --force || exit 1; \
+		ptm-pipeline init default "$$d" "$$out" --force --no-proptm3d || exit 1; \
 	done
 	@echo "All test projects initialized."
 
@@ -63,7 +64,7 @@ docker-init:
 		d=$${z%.zip}; \
 		out=$(DATA_DIR)/PTM_$$(basename "$$d"); \
 		echo "Docker init: $$d -> $$out"; \
-		$(PTM_SH) init default "$$d" "$$out" --force || exit 1; \
+		$(PTM_SH) init default "$$d" "$$out" --force --no-proptm3d || exit 1; \
 	done
 	@echo "All Docker test projects initialized."
 

@@ -1,10 +1,9 @@
 """Helper functions for the Snakefile: prophosqua's installed files, the
-landing page and the results archives."""
+pipeline version and the results archives."""
 
 import os
 import shutil
 import subprocess
-import tempfile
 from functools import lru_cache
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
@@ -17,39 +16,6 @@ def pipeline_version() -> str:
         return "unknown"
     result = subprocess.run([executable, "--version"], capture_output=True, text=True, check=False)
     return result.stdout.strip() or "unknown"
-
-
-def _r_string(value: str) -> str:
-    return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
-
-
-def render_report_index(output: str, config: str, template_files: list[str]) -> None:
-    """Render the FGCZ Quarto landing page that links the reports and result files.
-
-    Quarto writes next to its input, so the template and its figure are staged in
-    a temporary directory inside the results folder and only index.html is kept.
-    """
-    destination = Path(output).resolve()
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    render_dir = Path(tempfile.mkdtemp(prefix=".index_qmd_", dir=destination.parent))
-    try:
-        for template in template_files:
-            shutil.copy2(template, render_dir / Path(template).name)
-        execute_params = ", ".join(
-            f"{key} = {_r_string(value)}"
-            for key, value in {
-                "config": str(Path(config).resolve()),
-                "pipeline_version": pipeline_version(),
-            }.items()
-        )
-        expression = (
-            "fgczQuartoTemplate::fgcz_render('index.qmd', output_file = 'index.html', "
-            f"execute_params = list({execute_params}), quiet = TRUE)"
-        )
-        subprocess.run(["Rscript", "-e", expression], cwd=render_dir, check=True)
-        shutil.move(render_dir / "index.html", destination)
-    finally:
-        shutil.rmtree(render_dir, ignore_errors=True)
 
 
 def create_results_archive(folder: str, output: str, members: list[str]) -> None:
@@ -71,13 +37,21 @@ def create_results_archive(folder: str, output: str, members: list[str]) -> None
         temporary.unlink(missing_ok=True)
 
 
-def get_kinase_cbor_files() -> tuple[str, list[str]]:
+def get_kinase_files() -> tuple[str, list[str]]:
     """Resolve the installed adapter and the source files its calculations use."""
-    executable = shutil.which("ptm-kinase-cbor")
+    executable = shutil.which("ptm-kinase")
     if executable is None:
-        raise ValueError("ptm-kinase-cbor is missing; install the current ptm-pipeline package")
+        raise ValueError("ptm-kinase is missing; install the current ptm-pipeline package")
     result = subprocess.run([executable, "dependencies"], capture_output=True, text=True, check=True)
     return executable, result.stdout.splitlines()
+
+
+def get_proptm3d() -> str:
+    """Resolve the proptm3d command installed with ptm-pipeline."""
+    executable = shutil.which("proptm3d")
+    if executable is None:
+        raise ValueError("proptm3d is missing; install the current ptm-pipeline package")
+    return executable
 
 
 def get_prophosqua_file(relpath: str) -> str:

@@ -27,12 +27,14 @@ uv run zensical serve                        # Preview at http://127.0.0.1:8000
 uv run zensical build --clean --strict       # Build into public/ exactly as CI does
 
 # CLI commands
+ptm-pipeline setup MOUSE                # AlphaFold cache for the proptm3d step, once per machine
 ptm-pipeline init                       # Interactive initialization
 ptm-pipeline init default               # Non-interactive initialization
 ptm-pipeline run                        # Complete workflow
 ptm-pipeline run stats                  # Stop at PTM_statistics.h5mu, archive it
 ptm-pipeline run gsea                   # Stop at PTM_results.h5mu, archive it
 ptm-pipeline run dry [--target TARGET]  # Preview all, stats or gsea
+ptm-pipeline upload                     # Upload PTM results, proptm3d bundle, DEA zips to the order in bfabric_upload.yaml
 ptm-pipeline clean                      # Remove declared outputs
 ptm-pipeline clean init                 # Remove initialization files
 ptm-pipeline clean all                  # Remove both
@@ -46,7 +48,8 @@ src/ptm_pipeline/
 ├── discover.py     # Auto-detection of DEA folders and annotation files
 ├── init.py         # Project initialization and template copying
 ├── config.py       # YAML config generation
-└── clean.py        # Initialization-file cleanup
+├── clean.py        # Initialization-file cleanup
+└── bfabric_upload.py # Archives of a full run and their B-Fabric applications
 
 template/                # Copied to target projects on init
 ├── Snakefile            # Workflow rules

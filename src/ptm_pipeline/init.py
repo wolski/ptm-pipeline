@@ -5,7 +5,7 @@ import shutil
 import subprocess
 
 from rich.console import Console
-from rich.prompt import Prompt, Confirm
+from rich.prompt import Confirm, IntPrompt, Prompt
 from rich.panel import Panel
 from rich.table import Table
 
@@ -15,7 +15,7 @@ from .discover import (
     read_dea_contrasts,
     get_experiment_name,
 )
-from .config import generate_config, write_config, config_to_yaml_string
+from .config import UPLOAD_TARGET_FILE, config_to_yaml_string, generate_config, write_config, write_upload_target
 from .clean import generated_makefile
 
 
@@ -57,10 +57,10 @@ def get_template_dir() -> Path:
 def copy_template_files(project_dir: Path, dry_run: bool = False) -> list[str]:
     """Copy template files to project directory.
 
-    The project gets Snakefile, helpers.py, the landing page template with its
-    figure, and the ptm.sh wrapper. No R code is copied,
-    because there is none to copy -- every rule reaches its R script through
-    that wrapper, which resolves it from the installed package.
+    The project gets Snakefile, helpers.py and the ptm.sh wrapper. No R code or
+    report template is copied, because there is none to copy -- every rule
+    reaches its R script and report through that wrapper, which resolves them
+    from the installed package.
 
     Returns list of copied file paths (relative to project_dir).
     """
@@ -68,7 +68,7 @@ def copy_template_files(project_dir: Path, dry_run: bool = False) -> list[str]:
     copied_files = []
 
     # Files to copy at root level
-    root_files = ["Snakefile", "helpers.py", "index.qmd", "ptm-pipeline-overview.svg"]
+    root_files = ["Snakefile", "helpers.py"]
 
     for filename in root_files:
         src = template_dir / filename
@@ -127,6 +127,21 @@ def _r_string(value: str) -> str:
     return f'"{escaped}"'
 
 
+def _select_folder(kind: str, folders: list[Path], default: bool) -> Path:
+    """The first folder, or the one chosen when several are found and prompting is allowed."""
+    if len(folders) == 1 or default:
+        return folders[0]
+    console.print(f"\n[yellow]Multiple {kind} DEA folders found:[/yellow]")
+    for i, d in enumerate(folders):
+        console.print(f"  {i + 1}. {d.name}")
+    choice = Prompt.ask(
+        "Select folder",
+        choices=[str(i + 1) for i in range(len(folders))],
+        default="1"
+    )
+    return folders[int(choice) - 1]
+
+
 def init_project(
     project_dir: Path,
     input_dir: Path | None = None,
@@ -134,6 +149,9 @@ def init_project(
     dry_run: bool = False,
     force: bool = False,
     default: bool = False,
+    order_id: int | None = None,
+    workunit_name: str | None = None,
+    run_proptm3d: bool = True,
 ) -> bool:
     """Initialize PTM pipeline in project directory.
 
@@ -144,6 +162,9 @@ def init_project(
         dry_run: If True, only show what would be done
         force: If True, overwrite existing files
         default: If True, use defaults for all prompts (non-interactive)
+        order_id: B-Fabric order the upload command targets; prompted for if missing
+        workunit_name: Base workunit name for the uploads; defaults to the experiment name
+        run_proptm3d: Prepare and bundle the proptm3d browser in a full run
 
     Returns:
         True if initialization was successful
@@ -181,30 +202,13 @@ def init_project(
         return False
 
     # Select folders if multiple found
-    phospho_dir = all_folders["phospho"][0]
-    protein_dir = all_folders["protein"][0]
-
-    if len(all_folders["phospho"]) > 1 and not default:
-        console.print("\n[yellow]Multiple phospho DEA folders found:[/yellow]")
-        for i, d in enumerate(all_folders["phospho"]):
-            console.print(f"  {i + 1}. {d.name}")
-        choice = Prompt.ask(
-            "Select folder",
-            choices=[str(i + 1) for i in range(len(all_folders["phospho"]))],
-            default="1"
-        )
-        phospho_dir = all_folders["phospho"][int(choice) - 1]
-
-    if len(all_folders["protein"]) > 1 and not default:
-        console.print("\n[yellow]Multiple protein DEA folders found:[/yellow]")
-        for i, d in enumerate(all_folders["protein"]):
-            console.print(f"  {i + 1}. {d.name}")
-        choice = Prompt.ask(
-            "Select folder",
-            choices=[str(i + 1) for i in range(len(all_folders["protein"]))],
-            default="1"
-        )
-        protein_dir = all_folders["protein"][int(choice) - 1]
+    phospho_dir = _select_folder("phospho", all_folders["phospho"], default)
+    protein_dir = _select_folder("protein", all_folders["protein"], default)
+    # Optional peptide-level total DEA, carried into the MuData.
+    protein_peptide_dir = (
+        _select_folder("protein peptide", all_folders["protein_peptide"], default)
+        if all_folders["protein_peptide"] else None
+    )
 
     # Show selected folders
     table = Table(title="Selected DEA Folders")
@@ -212,6 +216,8 @@ def init_project(
     table.add_column("Folder", style="green")
     table.add_row("Phospho", phospho_dir.name)
     table.add_row("Protein", protein_dir.name)
+    if protein_peptide_dir is not None:
+        table.add_row("Protein peptide", protein_peptide_dir.name)
     console.print(table)
 
     console.print("\n[bold]Reading DEA AnnData artifacts...[/bold]")
@@ -231,6 +237,14 @@ def init_project(
         raise ValueError("Enriched and total DEA artifacts have different contrasts")
     for contrast in contrasts:
         console.print(f"    - {contrast}")
+    total_peptide_h5ad = find_dea_anndata(protein_peptide_dir) if protein_peptide_dir else None
+    if protein_peptide_dir is not None and total_peptide_h5ad is None:
+        console.print("[red]Missing total_peptide_h5ad: Results_WU_*/AnnData.h5ad[/red]")
+        unresolved.append("total_peptide_h5ad")
+    elif total_peptide_h5ad is not None:
+        if contrasts and contrasts != read_dea_contrasts(total_peptide_h5ad):
+            raise ValueError("Peptide-level total DEA artifact has different contrasts than the paired DEAs")
+        console.print(f"  total_peptide_h5ad: {total_peptide_h5ad.relative_to(input_dir)}")
 
     # Get experiment name - suggest first contrast as default
     if not name:
@@ -258,6 +272,19 @@ def init_project(
         console.print("\n[bold]Analysis options:[/bold]")
         run_kinase = Confirm.ask("Run kinase activity analysis?", default=True)
 
+    console.print("\n[bold]B-Fabric upload:[/bold]")
+    if default:
+        workunit_name = workunit_name or name
+        if order_id is None:
+            console.print(f"  [yellow]No --order-id; set order_id in {UPLOAD_TARGET_FILE} before uploading[/yellow]")
+    else:
+        while order_id is None or order_id <= 0:
+            if order_id is not None:
+                console.print("[red]The order ID must be a positive number[/red]")
+            order_id = IntPrompt.ask("B-Fabric order ID")
+        workunit_name = workunit_name or Prompt.ask("Workunit name", default=name)
+    console.print(f"  Order {order_id}, workunit name {workunit_name}")
+
     # Generate config
     console.print("\n[bold]Generating configuration...[/bold]")
     config = generate_config(
@@ -271,6 +298,9 @@ def init_project(
         fdr=fdr,
         log2fc=log2fc,
         run_kinase=run_kinase,
+        run_proptm3d=run_proptm3d,
+        protein_peptide_dir=protein_peptide_dir,
+        total_peptide_h5ad=total_peptide_h5ad,
     )
 
     if dry_run:
@@ -279,6 +309,8 @@ def init_project(
     else:
         write_config(config, config_file)
         console.print(f"  Written: ptm_config.yaml")
+        write_upload_target(project_dir, order_id, workunit_name)
+        console.print(f"  Written: {UPLOAD_TARGET_FILE}")
 
     # Copy template files
     console.print("\n[bold]Copying pipeline files...[/bold]")

@@ -3,29 +3,35 @@
 import json
 import shlex
 from pathlib import Path
-from helpers import create_results_archive, get_prophosqua_file, get_prophosqua_report, get_prophosqua_install_stamp, get_kinase_cbor_files, render_report_index
+from helpers import create_results_archive, get_prophosqua_file, get_prophosqua_report, get_prophosqua_install_stamp, get_kinase_files, get_proptm3d, pipeline_version
 
 configfile: "ptm_config.yaml"
 
 DIR_OUT = config["dir_out"]
 ANALYSES = config["analyses"]
 RUN_KINASE = config.get("run_kinase", True)
+RUN_PROPTM3D = config.get("run_proptm3d", True)
 PTM = get_prophosqua_file("bin/ptm.sh")
 PKG = get_prophosqua_install_stamp()
-KINASE, KINASE_SOURCES = get_kinase_cbor_files() if RUN_KINASE else ("", [])
+KINASE, KINASE_SOURCES = get_kinase_files() if RUN_KINASE else ("", [])
 COMMANDS = ("import_h5mu", "ptm_h5mu", "enrich", "assemble_h5mu", "export_h5mu", "render")
 CMD = {name: get_prophosqua_file(f"CMD_{name.upper()}.R") for name in COMMANDS}
 INPUTS = f"{DIR_OUT}/PTM_inputs.h5mu"
 STATISTICS = f"{DIR_OUT}/PTM_statistics.h5mu"
 FINAL = f"{DIR_OUT}/PTM_results.h5mu"
 DIRECTORIES = {name: f"{DIR_OUT}/{value['subdir']}" for name, value in ANALYSES.items()}
-DEA_ARCHIVES = {name: f"{Path(config[f'{name}_dea_dir']).name}.zip" for name in ("phospho", "protein")}
-# The completed enrichments are protsea documents, the kinase-library
-# preparations gzipped CBOR. prophosqua lays out the same files.
+# The peptide-level total DEA is optional; the MuData carries it, no rule analyses it.
+TOTAL_PEPTIDE = config.get("total_peptide_h5ad")
+DEA_DIRS = {name: config[f"{name}_dea_dir"]
+            for name in ("phospho", "protein", "protein_peptide") if config.get(f"{name}_dea_dir")}
+DEA_ARCHIVES = {name: f"{Path(directory).name}.zip" for name, directory in DEA_DIRS.items()}
+# Every stage file is gzipped JSON: the completed enrichments protsea
+# documents, the kinase-library preparations stage envelopes. prophosqua lays
+# out the same files.
 STAGE_FILES = {
     "PTMSEA": "result_ptm_sea.json.gz",
-    "KinaseInputs": "intermediate_kinase_inputs.cbor.gz",
-    "KinaseAssignments": "intermediate_kinase_assignments.cbor.gz",
+    "KinaseInputs": "intermediate_kinase_inputs.json.gz",
+    "KinaseAssignments": "intermediate_kinase_assignments.json.gz",
     "KinaseGSEA": "result_kinase_gsea.json.gz",
     "MEA": "result_mea.json.gz",
 }
@@ -45,11 +51,15 @@ STATISTICS_REPORT = f"{DIR_OUT}/ptm_statistics.html"
 ENRICHMENT_REPORTS = {name: f"{directory}/ptm_enrichment.html" for name, directory in DIRECTORIES.items()}
 REPORTS = [STATISTICS_REPORT] + (list(ENRICHMENT_REPORTS.values()) if RUN_KINASE else [])
 INDEX = f"{DIR_OUT}/index.html"
-INDEX_TEMPLATE = ["index.qmd", "ptm-pipeline-overview.svg"]
 DELIVERY = [f"{DIR_OUT}/PTM_results.xlsx"]
 STATISTICS_ARCHIVE = f"{DIR_OUT}_statistics.zip"
 ENRICHMENT_ARCHIVE = f"{DIR_OUT}_enrichment.zip"
 RESULTS_ARCHIVE = f"{DIR_OUT}.zip"
+PROPTM3D = get_proptm3d() if RUN_PROPTM3D else ""
+# The names proptm3d itself defaults to: the prepared folder beside the
+# delivery, its all-method bundle beside the folder.
+PROPTM3D_FOLDER = f"proptm3d_{DIR_OUT}"
+PROPTM3D_BUNDLE = f"{PROPTM3D_FOLDER}-all.zip"
 
 rule all:
     input:
@@ -58,8 +68,8 @@ rule all:
         DELIVERY,
         INDEX,
         RESULTS_ARCHIVE,
-        DEA_ARCHIVES["phospho"],
-        DEA_ARCHIVES["protein"]
+        DEA_ARCHIVES.values(),
+        [PROPTM3D_BUNDLE] if RUN_PROPTM3D else []
 
 rule stats:
     input: STATISTICS_ARCHIVE
@@ -71,6 +81,7 @@ rule import_inputs:
     input:
         enriched=config["enriched_h5ad"],
         total=config["total_h5ad"],
+        total_peptide=[TOTAL_PEPTIDE] if TOTAL_PEPTIDE else [],
         configuration=workflow.configfiles,
         reference=[config["ptmsigdb"]["input_file"]] if config.get("ptmsigdb", {}).get("input_file") else [],
         wrapper=PTM,
@@ -81,10 +92,12 @@ rule import_inputs:
     params:
         configuration=json.dumps(config),
         reference_flag=("--ptmsigdb " + shlex.quote(config["ptmsigdb"]["input_file"]))
-            if config.get("ptmsigdb", {}).get("input_file") else ""
+            if config.get("ptmsigdb", {}).get("input_file") else "",
+        peptide_flag=("--total_peptide " + shlex.quote(TOTAL_PEPTIDE)) if TOTAL_PEPTIDE else ""
     shell:
         "bash {input.wrapper:q} import_h5mu --enriched {input.enriched:q} --total {input.total:q} "
-        "--config_json {params.configuration:q} {params.reference_flag} --output {output.h5mu:q} > {log:q} 2>&1"
+        "{params.peptide_flag} --config_json {params.configuration:q} {params.reference_flag} "
+        "--output {output.h5mu:q} > {log:q} 2>&1"
 
 rule compute_statistics:
     input: h5mu=INPUTS, wrapper=PTM, script=CMD["ptm_h5mu"], package=PKG
@@ -93,39 +106,39 @@ rule compute_statistics:
     shell: "bash {input.wrapper:q} ptm_h5mu --input {input.h5mu:q} --output {output.h5mu:q} > {log:q} 2>&1"
 
 if RUN_KINASE:
-    for analysis, directory in DIRECTORIES.items():
+    for analysis, analysis_dir in DIRECTORIES.items():
         for stage in ("PTMSEA", "KinaseInputs"):
             rule:
                 name: f"build_{stage.lower()}_{analysis}"
                 input: h5mu=STATISTICS, wrapper=PTM, script=CMD["enrich"], package=PKG
-                output: file=stage_path(directory, stage)
-                log: f"{directory}/logs/{stage}.log"
+                output: file=stage_path(analysis_dir, stage)
+                log: f"{analysis_dir}/logs/{stage}.log"
                 params: stage=stage, analysis=analysis.upper()
                 shell:
                     "bash {input.wrapper:q} enrich --statistics {input.h5mu:q} --output {output.file:q} "
                     "--stage {params.stage:q} --analysis {params.analysis:q} > {log:q} 2>&1"
         rule:
             name: f"scan_motifs_{analysis}"
-            input: cbor=stage_path(directory, "KinaseInputs"), executable=KINASE, sources=KINASE_SOURCES
-            output: cbor=stage_path(directory, "KinaseAssignments")
-            log: f"{directory}/logs/scan_motifs.log"
-            shell: "{input.executable:q} scan {input.cbor:q} {output.cbor:q} > {log:q} 2>&1"
+            input: inputs=stage_path(analysis_dir, "KinaseInputs"), executable=KINASE, sources=KINASE_SOURCES
+            output: assignments=stage_path(analysis_dir, "KinaseAssignments")
+            log: f"{analysis_dir}/logs/scan_motifs.log"
+            shell: "{input.executable:q} scan {input.inputs:q} {output.assignments:q} > {log:q} 2>&1"
         rule:
             name: f"run_mea_{analysis}"
-            input: kinase_inputs=stage_path(directory, "KinaseInputs"), assignments=stage_path(directory, "KinaseAssignments"), executable=KINASE, sources=KINASE_SOURCES
-            output: json=stage_path(directory, "MEA")
-            log: f"{directory}/logs/run_mea.log"
+            input: kinase_inputs=stage_path(analysis_dir, "KinaseInputs"), assignments=stage_path(analysis_dir, "KinaseAssignments"), executable=KINASE, sources=KINASE_SOURCES
+            output: json=stage_path(analysis_dir, "MEA")
+            log: f"{analysis_dir}/logs/run_mea.log"
             threads: config["threads"]["mea"]
             shell: "{input.executable:q} enrich {input.kinase_inputs:q} {input.assignments:q} {output.json:q} --threads {threads} > {log:q} 2>&1"
         rule:
             name: f"build_kinasegsea_{analysis}"
             input:
                 statistics=STATISTICS,
-                kinase_inputs=stage_path(directory, "KinaseInputs"),
-                assignments=stage_path(directory, "KinaseAssignments"),
+                kinase_inputs=stage_path(analysis_dir, "KinaseInputs"),
+                assignments=stage_path(analysis_dir, "KinaseAssignments"),
                 wrapper=PTM, script=CMD["enrich"], package=PKG
-            output: json=stage_path(directory, "KinaseGSEA")
-            log: f"{directory}/logs/KinaseGSEA.log"
+            output: json=stage_path(analysis_dir, "KinaseGSEA")
+            log: f"{analysis_dir}/logs/KinaseGSEA.log"
             params: analysis=analysis.upper()
             shell:
                 "bash {input.wrapper:q} enrich --statistics {input.statistics:q} --output {output.json:q} "
@@ -153,25 +166,33 @@ rule render_statistics:
         "fold_change_threshold={params.fc} > {log:q} 2>&1"
 
 if RUN_KINASE:
-    for analysis, directory in DIRECTORIES.items():
+    for analysis, analysis_dir in DIRECTORIES.items():
         rule:
             name: f"render_enrichment_{analysis}"
             input: h5mu=FINAL, wrapper=PTM, script=CMD["render"], package=PKG,
                    template=get_prophosqua_report("ptm_enrichment.qmd")
             output: html=ENRICHMENT_REPORTS[analysis]
-            log: f"{directory}/logs/ptm_enrichment.log"
-            params: folder=directory, analysis=analysis.upper(), fdr=config["fdr"]
+            log: f"{analysis_dir}/logs/ptm_enrichment.log"
+            params: folder=analysis_dir, analysis=analysis.upper(), fdr=config["fdr"]
             shell:
                 "bash {input.wrapper:q} render --report ptm_enrichment.qmd "
                 "--output_file ptm_enrichment.html --output_dir {params.folder:q} "
                 "input_h5mu={input.h5mu:q} analysis={params.analysis:q} "
                 "fdr_threshold={params.fdr} > {log:q} 2>&1"
 
+# The landing page is prophosqua's report too; it reads the run's contrasts,
+# branches and inputs from the smallest stage file and links the reports.
 rule top_index:
-    input: reports=REPORTS, config="ptm_config.yaml", template=INDEX_TEMPLATE
+    input: h5mu=INPUTS, reports=REPORTS, wrapper=PTM, script=CMD["render"], package=PKG,
+           template=get_prophosqua_report("ptm_index.qmd")
     output: html=INDEX
-    run:
-        render_report_index(output.html, input.config, input.template)
+    log: f"{DIR_OUT}/logs/index.log"
+    params: folder=DIR_OUT, fdr=config["fdr"], fc=config["log2fc"], version=pipeline_version()
+    shell:
+        "bash {input.wrapper:q} render --report ptm_index.qmd "
+        "--output_file index.html --output_dir {params.folder:q} "
+        "input_h5mu={input.h5mu:q} fdr_threshold={params.fdr} "
+        "fold_change_threshold={params.fc} pipeline_version={params.version:q} > {log:q} 2>&1"
 
 rule export_delivery:
     input: h5mu=FINAL, reports=REPORTS, index=INDEX, wrapper=PTM, script=CMD["export_h5mu"], package=PKG
@@ -198,12 +219,32 @@ rule zip_enrichment:
 
 rule zip:
     input: delivery=DELIVERY, h5mu=FINAL, branches=RESULT_BRANCHES, reports=REPORTS, index=INDEX
-    output: results=RESULTS_ARCHIVE, phospho=DEA_ARCHIVES["phospho"], protein=DEA_ARCHIVES["protein"]
-    params: folder=DIR_OUT, phospho=config["phospho_dea_dir"], protein=config["protein_dea_dir"]
+    output: results=RESULTS_ARCHIVE, dea=DEA_ARCHIVES.values()
+    params: folder=DIR_OUT
     run:
         create_results_archive(
             params.folder, output.results,
             list(input.delivery) + [input.h5mu] + list(input.branches)
             + list(input.reports) + [input.index]
         )
-        shell("zip -r {output.phospho:q} {params.phospho:q} && zip -r {output.protein:q} {params.protein:q}")
+        for name, archive in DEA_ARCHIVES.items():
+            shell(f"zip -r {shlex.quote(archive)} {shlex.quote(DEA_DIRS[name])}")
+
+# The browser reads the completed delivery; without the enrichment branches
+# only its statistics can be prepared. Needs the organism's AlphaFold cache
+# (ptm-pipeline setup MOUSE), which the pipeline does not fetch.
+if RUN_PROPTM3D:
+    rule prepare_proptm3d:
+        input: results=RESULTS_ARCHIVE, executable=PROPTM3D
+        output: folder=directory(PROPTM3D_FOLDER)
+        log: f"{DIR_OUT}/logs/prepare_proptm3d.log"
+        params: preparation="gsea" if RUN_KINASE else "stats"
+        shell:
+            "{input.executable:q} prepare {params.preparation} --input {input.results:q} "
+            "{output.folder:q} > {log:q} 2>&1"
+
+    rule bundle_proptm3d:
+        input: folder=PROPTM3D_FOLDER, executable=PROPTM3D
+        output: bundle=PROPTM3D_BUNDLE
+        log: f"{DIR_OUT}/logs/bundle_proptm3d.log"
+        shell: "{input.executable:q} bundle {input.folder:q} > {log:q} 2>&1"

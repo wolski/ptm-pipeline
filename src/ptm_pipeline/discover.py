@@ -8,7 +8,8 @@ import numpy as np
 def find_all_dea_folders(project_dir: Path) -> dict[str, list[Path]]:
     """Find all DEA folders, grouped by type.
 
-    Returns dict with 'phospho' and 'protein' keys, each containing list of paths.
+    Returns dict with 'phospho', 'protein' and 'protein_peptide' keys, each
+    containing list of paths.
     """
     # Phospho patterns - multiple naming conventions
     phospho_dirs = set()
@@ -26,7 +27,16 @@ def find_all_dea_folders(project_dir: Path) -> dict[str, list[Path]]:
         reverse=True
     )
 
-    return {"phospho": phospho_dirs, "protein": protein_dirs}
+    # A peptide-level total DEA names its workunit *peptide*; its AnnData looks
+    # like any other, so the name is what tells it apart.
+    def peptide_level(d: Path) -> bool:
+        return "peptide" in d.name.lower()
+
+    return {
+        "phospho": phospho_dirs,
+        "protein": [d for d in protein_dirs if not peptide_level(d)],
+        "protein_peptide": [d for d in protein_dirs if peptide_level(d)],
+    }
 
 
 def find_dea_anndata(dea_dir: Path) -> Path | None:

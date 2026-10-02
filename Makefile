@@ -1,6 +1,7 @@
 .PHONY: all install dev test docs servedocs docs-serve lint format build clean help
 
 DOCS_ADDR ?= localhost:8123
+SERVE_ON_PORT ?= $(wildcard $(HOME)/projects/bin/serve-on-port)
 
 all: install
 
@@ -30,7 +31,7 @@ docs:
 	uv run --group docs zensical build --clean --strict
 
 servedocs docs-serve:
-	uv run --group docs zensical serve --dev-addr $(DOCS_ADDR)
+	SERVE_PORT=$(lastword $(subst :, ,$(DOCS_ADDR))) $(SERVE_ON_PORT) uv run --group docs zensical serve --dev-addr $(DOCS_ADDR)
 
 lint:
 	uv run ruff check src/
