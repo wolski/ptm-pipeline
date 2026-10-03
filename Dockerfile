@@ -27,9 +27,11 @@ RUN R -e "install.packages('pak'); stopifnot(packageVersion('pak') >= '0.11')"
 RUN R -e "pak::pkg_install('github::prolfqua/prophosqua', dependencies = TRUE)"
 
 # prophosqua again with its vignettes built: the reports are installed from
-# vignettes/ into doc/.
+# vignettes/ into doc/. force: pak installed the same commit above, and remotes
+# skips a commit it has seen, which left the image without the reports.
 RUN R -e "install.packages('remotes')" \
- && R -e "remotes::install_github('prolfqua/prophosqua', dependencies=FALSE, build_vignettes=TRUE, upgrade='never')"
+ && R -e "remotes::install_github('prolfqua/prophosqua', dependencies=FALSE, build_vignettes=TRUE, upgrade='never', force=TRUE)" \
+ && R -e "stopifnot(nzchar(system.file('doc', 'ptm_statistics.qmd', package = 'prophosqua')))"
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
