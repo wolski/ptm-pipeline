@@ -92,10 +92,14 @@ else
     DOCKER_ARGS="-i"
 fi
 
+# The host uid has no passwd entry in the image: USER answers getpass(), which
+# snakemake calls, and HOME must be writable, which / is not.
 $DOCKER run --rm $DOCKER_ARGS \
     --user "$(id -u):$(id -g)" \
     --mount "type=bind,source=$(pwd),target=/work" \
     --env XDG_CACHE_HOME=/work/.cache \
+    --env USER="$(id -un)" \
+    --env HOME=/tmp \
     -w /work \
     "$IMAGE" \
     ptm-pipeline "${CONTAINER_ARGS[@]}"
